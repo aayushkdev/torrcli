@@ -1,11 +1,14 @@
 import libtorrent as lt
 import time
+import json
 import os
+import socket
 from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
 from rich.prompt import Confirm
 
+SOCKET_PATH = "/tmp/torrcli_daemon.sock"
 console = Console()
 
 def show_metadata(handle):
@@ -17,7 +20,7 @@ def show_metadata(handle):
     num_files = ti.num_files()
     num_peers = s.num_peers
     seeders = s.num_seeds
-    leechers = num_peers - seeders  
+    leechers = num_peers - seeders
     trackers = list(ti.trackers())
 
     table = Table(title="Torrent Metadata", show_lines=True)
@@ -40,26 +43,26 @@ def show_metadata(handle):
     console.print(table)
 
 
-def _download_torrent(handle):
-    if handle.is_seed():
-        s = handle.status()
-        console.print(f"[green]Torrent already downloaded at:[/green] {s.save_path}")
+def send_to_daemon(data):
+    if not os.path.exists(SOCKET_PATH):
+        console.print("[red]Daemon is not running![/red]")
         return
 
-    with Progress() as progress:
-        task = progress.add_task("[cyan]Downloading...", total=100)
-        while not handle.is_seed():
-            s = handle.status()
-            progress.update(task, completed=s.progress * 100)
-            time.sleep(1)
-        console.print("[green]Download complete![/green]")
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.connect(SOCKET_PATH)
+            sock.sendall(json.dumps(data).encode())
+            response = sock.recv(1024).decode()
+            console.print(f"[green]Daemon response:[/green] {response}")
+    except Exception as e:
+        console.print(f"[red]Error communicating with daemon: {e}[/red]")
 
 
-def download_from_magnet(magnet_link, save_path="./downloads"):
+def download_from_magnet(magnet_link, save_path):
     ses = lt.session()
     ses.listen_on(6881, 6891)
     params = {
-        'save_path': save_path,
+        'save_path': '/tmp',
         'storage_mode': lt.storage_mode_t(2),
     }
     handle = lt.add_magnet_uri(ses, magnet_link, params)
@@ -72,17 +75,21 @@ def download_from_magnet(magnet_link, save_path="./downloads"):
     show_metadata(handle)
 
     if Confirm.ask("Do you want to download this torrent?"):
-        _download_torrent(handle)
+        send_to_daemon({
+            "type": "magnet",
+            "magnet_link": magnet_link,
+            "save_path": save_path
+        })
     else:
         console.print("[red]Download cancelled.[/red]")
 
 
-def download_from_torrent_file(torrent_path, save_path="./downloads"):
+def download_from_torrent_file(torrent_path, save_path):
     ses = lt.session()
     ses.listen_on(6881, 6891)
     info = lt.torrent_info(torrent_path)
     params = {
-        'save_path': save_path,
+        'save_path': '/tmp',
         'ti': info
     }
     handle = ses.add_torrent(params)
@@ -91,6 +98,10 @@ def download_from_torrent_file(torrent_path, save_path="./downloads"):
     show_metadata(handle)
 
     if Confirm.ask("Do you want to download this torrent?"):
-        _download_torrent(handle)
+        send_to_daemon({
+            "type": "torrent_file",
+            "torrent_path": torrent_path,
+            "save_path": save_path
+        })
     else:
         console.print("[red]Download cancelled.[/red]")

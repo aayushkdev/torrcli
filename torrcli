@@ -13,14 +13,15 @@ def is_torrent_file(path: str) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Torrent CLI Downloader")
     parser.add_argument('--download', help="Magnet link or .torrent file")
+    parser.add_argument('--save', help="Optional path to save downloaded files")
 
     args = parser.parse_args()
 
     if args.download:
         if is_magnet_link(args.download):
-            download_from_magnet(args.download)
+            download_from_magnet(args.download, args.save)
         elif is_torrent_file(args.download):
-            download_from_torrent_file(args.download)
+            download_from_torrent_file(args.download, args.save)
         else:
             print("Error: Not a valid magnet link or .torrent file path.")
     else:
