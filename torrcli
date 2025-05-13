@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+from downloader import download_from_magnet, download_from_torrent_file
+
+def is_magnet_link(value: str) -> bool:
+    return value.startswith("magnet:?xt=urn:")
+
+def is_torrent_file(path: str) -> bool:
+    return os.path.isfile(path) and path.endswith(".torrent")
+
+def main():
+    parser = argparse.ArgumentParser(description="Torrent CLI Downloader")
+    parser.add_argument('--download', help="Magnet link or .torrent file")
+
+    args = parser.parse_args()
+
+    if args.download:
+        if is_magnet_link(args.download):
+            download_from_magnet(args.download)
+        elif is_torrent_file(args.download):
+            download_from_torrent_file(args.download)
+        else:
+            print("Error: Not a valid magnet link or .torrent file path.")
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
