@@ -37,11 +37,15 @@ def show_metadata(handle):
         str(len(trackers)),
     )
 
-    # Print the table
     console.print(table)
 
 
 def _download_torrent(handle):
+    if handle.is_seed():
+        s = handle.status()
+        console.print(f"[green]Torrent already downloaded at:[/green] {s.save_path}")
+        return
+
     with Progress() as progress:
         task = progress.add_task("[cyan]Downloading...", total=100)
         while not handle.is_seed():
@@ -59,6 +63,7 @@ def download_from_magnet(magnet_link, save_path="./downloads"):
         'storage_mode': lt.storage_mode_t(2),
     }
     handle = lt.add_magnet_uri(ses, magnet_link, params)
+    handle.pause()
     console.print("[yellow]Fetching metadata...[/yellow]")
 
     while not handle.has_metadata():
@@ -81,6 +86,7 @@ def download_from_torrent_file(torrent_path, save_path="./downloads"):
         'ti': info
     }
     handle = ses.add_torrent(params)
+    handle.pause()
 
     show_metadata(handle)
 
