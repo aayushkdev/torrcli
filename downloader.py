@@ -3,9 +3,42 @@ import time
 import os
 from rich.console import Console
 from rich.progress import Progress
+from rich.table import Table
 from rich.prompt import Confirm
 
 console = Console()
+
+def show_metadata(handle):
+    s = handle.status()
+    ti = handle.get_torrent_info()
+
+    name = ti.name()
+    size_mb = f"{ti.total_size() / (1024 ** 2):.2f} MB"
+    num_files = ti.num_files()
+    num_peers = s.num_peers
+    seeders = s.num_seeds
+    leechers = num_peers - seeders  
+    trackers = list(ti.trackers())
+
+    table = Table(title="Torrent Metadata", show_lines=True)
+    table.add_column("Name", style="bold cyan")
+    table.add_column("Size", style="green")
+    table.add_column("Files", style="green")
+    table.add_column("Seeders", style="yellow")
+    table.add_column("Leechers", style="yellow")
+    table.add_column("Trackers", style="yellow")
+
+    table.add_row(
+        name,
+        size_mb,
+        str(num_files),
+        str(seeders),
+        str(leechers),
+        str(len(trackers)),
+    )
+
+    # Print the table
+    console.print(table)
 
 
 def _download_torrent(handle):
