@@ -1,46 +1,88 @@
-#!/usr/bin/env python3
-
-import os
 import sys
-import time
 import json
-import socket
+import time
 import signal
-import libtorrent as lt
-from threading import Thread
-from daemonize import Daemonize
+import socket
 from pathlib import Path
+import libtorrent as lt
 
 PID_FILE = "/tmp/torrcli_daemon.pid"
 SOCKET_PATH = "/tmp/torrcli_daemon.sock"
-DOWNLOAD_DIR = Path.home() / 'Downloads'
 
-if not os.path.exists(DOWNLOAD_DIR):
-    os.makedirs(DOWNLOAD_DIR)
+ses = lt.session({'listen_interfaces': '0.0.0.0:6881'})
 
-def download_magnet(magnet_link, save_path):
-    ses = lt.session()
-    ses.listen_on(6881, 6891)
-    params = {'save_path': save_path, 'storage_mode': lt.storage_mode_t(2)}
-    handle = lt.add_magnet_uri(ses, magnet_link, params)
+torrent_handles = {}
 
-    while not handle.has_metadata():
-        time.sleep(1)
+def clean_exit(*_):
+    """Clean up when exiting."""
+    Path(SOCKET_PATH).unlink(missing_ok=True)
+    sys.exit(0)
 
-    while not handle.is_seed():
-        time.sleep(1) 
+def handle_request(data, conn):
+    """Handle incoming request and perform actions."""
+    req_type = data.get("type")
+    source = data.get("source")
+    save_path = data.get("save_path")
 
-def worker_thread(magnet_link, save_path):
-    try:
-        print(f"Starting download: {magnet_link} -> {save_path}")
-        download_magnet(magnet_link, save_path)
-        print(f"Completed: {magnet_link}")
-    except Exception as e:
-        print(f"Error downloading {magnet_link}: {e}")
+    if req_type == "add_torrent":
+        if source.startswith("magnet:"):
+            params = {"save_path": save_path, "storage_mode": lt.storage_mode_t(2)}
+            handle = ses.add_torrent({"url":source, "save_path":save_path})
+            torrent_handles[source] = handle
+
+            # Wait indefinitely for metadata to be available
+            while not handle.has_metadata():
+                time.sleep(1)
+            handle.pause()
+            ti = handle.get_torrent_info()
+        else:
+            info = lt.torrent_info(source)
+            params = {"save_path": save_path, "ti": info}
+            handle = ses.add_torrent(params)
+            handle.pause()
+            torrent_handles[source] = handle
+            ti = info
+
+        status = handle.status()
+        metadata = {
+            "name": ti.name(),
+            "size_mb": f"{ti.total_size() / (1024 ** 2):.2f} MB",
+            "num_files": ti.num_files(),
+            "seeders": status.num_seeds,
+            "leechers": status.num_peers - status.num_seeds,
+        }
+        conn.sendall(json.dumps({"status": "metadata", "data": metadata}).encode())
+
+    elif req_type == "start_download":
+        handle = torrent_handles.get(source)
+        if handle:
+            handle.resume()
+            conn.sendall(b'{"status": "resumed"}')
+        else:
+            conn.sendall(b'{"status": "error", "message": "Torrent not found"}')
+
+    elif req_type == "pause_download":
+        handle = torrent_handles.get(source)
+        if handle:
+            handle.pause()
+            conn.sendall(b'{"status": "paused"}')
+        else:
+            conn.sendall(b'{"status": "error", "message": "Torrent not found"}')
+
+    elif req_type == "remove_download":
+        handle = torrent_handles.pop(source, None)
+        if handle:
+            ses.remove_torrent(handle)
+            conn.sendall(b'{"status": "removed"}')
+        else:
+            conn.sendall(b'{"status": "error", "message": "Torrent not found"}')
+
+    else:
+        conn.sendall(b'{"status": "error", "message": "Unknown request type"}')
 
 def socket_server():
-    if os.path.exists(SOCKET_PATH):
-        os.remove(SOCKET_PATH)
+    """Main server loop for receiving requests."""
+    Path(SOCKET_PATH).unlink(missing_ok=True)
 
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
         server.bind(SOCKET_PATH)
@@ -49,29 +91,12 @@ def socket_server():
         while True:
             conn, _ = server.accept()
             with conn:
-                try:
-                    raw = conn.recv(4096)
-                    data = json.loads(raw.decode("utf-8"))
-                    magnet_link = data.get("magnet_link")
-                    save_path = data.get("save_path") or DOWNLOAD_DIR 
-                    conn.sendall(f"error: {str(save_path)}\n".encode())
+                raw = conn.recv(4096)
+                if not raw:
+                    continue
 
-                    if not os.path.exists(save_path):
-                        os.makedirs(save_path)
-
-                    if magnet_link:
-                        t = Thread(target=worker_thread, args=(magnet_link, save_path), daemon=True)
-                        t.start()
-                        conn.sendall(b"started\n")
-                    else:
-                        conn.sendall(b"no magnet_link provided\n")
-                except Exception as e:
-                    conn.sendall(f"error: {str(e)}\n".encode())
-
-def clean_exit(*args):
-    if os.path.exists(SOCKET_PATH):
-        os.remove(SOCKET_PATH)
-    sys.exit(0)
+                data = json.loads(raw.decode("utf-8"))
+                handle_request(data, conn)
 
 def main():
     signal.signal(signal.SIGTERM, clean_exit)
@@ -79,5 +104,4 @@ def main():
     socket_server()
 
 if __name__ == "__main__":
-    daemon = Daemonize(app="torrent_daemon", pid=PID_FILE, action=main)
-    daemon.start()
+    main()
