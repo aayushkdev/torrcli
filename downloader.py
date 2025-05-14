@@ -1,12 +1,14 @@
 import json
-import socket
 import os
+import asyncio
 from rich.console import Console
 from rich.table import Table
 from rich.prompt import Confirm
+from rich.progress import Progress
 
 SOCKET_PATH = "/tmp/torrcli_daemon.sock"
 console = Console()
+
 
 def show_metadata(metadata):
     table = Table(title="Torrent Metadata", show_lines=True)
@@ -26,25 +28,67 @@ def show_metadata(metadata):
 
     console.print(table)
 
-def send_to_daemon(data):
+
+async def send_to_daemon(data):
     if not os.path.exists(SOCKET_PATH):
         console.print("[red]Daemon is not running![/red]")
         return None
 
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.connect(SOCKET_PATH)
-        sock.sendall(json.dumps(data).encode())
-        response = sock.recv(4096).decode()
-        response_data = json.loads(response)
+    reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
+    writer.write(json.dumps(data).encode())
+    await writer.drain()
 
-        if response_data.get("status") == "metadata":
-            return response_data["data"]
-        else:
-            console.print(f"[red]Daemon response:[/red] {response}")
-            return None
+    raw = await reader.read(4096)
+    writer.close()
+    await writer.wait_closed()
 
-def download(source, save_path):
-    metadata = send_to_daemon({
+    response = json.loads(raw.decode())
+
+    if response.get("status") == "metadata":
+        return response["data"]
+    else:
+        console.print(f"[red]Daemon response:[/red] {response}")
+        return None
+
+
+async def progress(source):
+    if not os.path.exists(SOCKET_PATH):
+        console.print("[red]Daemon is not running![/red]")
+        return
+
+    reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
+
+    writer.write(json.dumps({
+        "type": "get_progress",
+        "source": source
+    }).encode())
+    await writer.drain()
+
+    buffer = ""
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Downloading...", total=100)
+        while not reader.at_eof():
+            chunk = await reader.read(4096)
+            if not chunk:
+                break
+            buffer += chunk.decode()
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                try:
+                    data = json.loads(line)
+                    if data["status"] in ("downloading", "seeding"):
+                        progress.update(task, completed=data["download_progress"])
+                        if data["status"] == "seeding":
+                            console.print("[green]Download complete![/green]")
+                            writer.close()
+                            await writer.wait_closed()
+                            return
+                except json.JSONDecodeError:
+                    continue
+
+
+async def download(source, save_path):
+    metadata = await send_to_daemon({
         "type": "add_torrent",
         "source": source,
         "save_path": save_path
@@ -54,14 +98,16 @@ def download(source, save_path):
         show_metadata(metadata)
 
         if Confirm.ask("Do you want to download this torrent?"):
-            send_to_daemon({
+            await send_to_daemon({
                 "type": "start_download",
                 "source": source,
                 "save_path": save_path
             })
+
+            await progress(source)
         else:
-            console.print("[red]Download cancelled. Pausing torrent...[/red]")
-            send_to_daemon({
+            console.print("[red]Download cancelled. Removing torrent...[/red]")
+            await send_to_daemon({
                 "type": "remove_download",
                 "source": source
             })

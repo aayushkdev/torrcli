@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import asyncio
 from downloader import download
 from pathlib import Path
 
@@ -11,7 +12,7 @@ def is_magnet_link(value: str) -> bool:
 def is_torrent_file(path: str) -> bool:
     return os.path.isfile(path) and path.endswith(".torrent")
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Torrent CLI Downloader")
     parser.add_argument('--download', help="Magnet link or .torrent file")
     parser.add_argument('--save', help="Optional path to save downloaded files", default=str(Path.home() / 'Downloads'))
@@ -19,14 +20,12 @@ def main():
     args = parser.parse_args()
 
     if args.download:
-        if is_magnet_link(args.download):
-            download(args.download, args.save)
-        elif is_torrent_file(args.download):
-            download(args.download, args.save)
+        if is_magnet_link(args.download) or is_torrent_file(args.download):
+            await download(args.download, args.save)
         else:
             print("Error: Not a valid magnet link or .torrent file path.")
     else:
         parser.print_help()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
