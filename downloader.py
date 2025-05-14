@@ -29,14 +29,19 @@ def show_metadata(metadata):
     console.print(table)
 
 
-async def send_to_daemon(data):
+async def send_command(data):
     if not os.path.exists(SOCKET_PATH):
         console.print("[red]Daemon is not running![/red]")
-        return None
+        return None, None
 
     reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
     writer.write(json.dumps(data).encode())
     await writer.drain()
+    return reader, writer
+
+
+async def send_to_daemon(data):
+    reader, writer = await send_command(data)
 
     raw = await reader.read(4096)
     writer.close()
@@ -52,17 +57,10 @@ async def send_to_daemon(data):
 
 
 async def progress(source):
-    if not os.path.exists(SOCKET_PATH):
-        console.print("[red]Daemon is not running![/red]")
-        return
-
-    reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
-
-    writer.write(json.dumps({
+    reader, writer = await send_command({
         "type": "get_progress",
         "source": source
-    }).encode())
-    await writer.drain()
+    })
 
     buffer = ""
     with Progress() as progress:
