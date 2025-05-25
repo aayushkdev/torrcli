@@ -3,7 +3,7 @@
 import argparse
 import os
 import asyncio
-from downloader import download
+from download_manager import download
 from pathlib import Path
 
 def is_magnet_link(value: str) -> bool:
