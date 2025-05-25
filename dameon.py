@@ -46,7 +46,7 @@ async def handle_request(reader, writer):
             status = handle.status()
             metadata = {
                 "name": ti.name(),
-                "size_mb": f"{ti.total_size() / (1024 ** 2):.2f} MB",
+                "size_bytes": ti.total_size(),
                 "num_files": ti.num_files(),
                 "seeders": status.num_seeds,
                 "leechers": status.num_peers - status.num_seeds,
@@ -56,16 +56,23 @@ async def handle_request(reader, writer):
         elif req_type == "start_download":
             handle = torrent_handles.get(source)
             if handle:
-                handle.resume()
-                writer.write(b'{"status": "resumed"}')
+                if not handle.status().paused:
+                    writer.write(b'{"status": "already_resumed"}')
+                else:
+                    handle.resume()
+                    writer.write(b'{"status": "resumed"}')
             else:
                 writer.write(b'{"status": "error", "message": "Torrent not found"}')
 
         elif req_type == "pause_download":
             handle = torrent_handles.get(source)
             if handle:
-                handle.pause()
-                writer.write(b'{"status": "paused"}')
+                if handle.status().paused:
+                    writer.write(b'{"status": "already_paused"}')
+                else:
+                    handle.auto_managed(False)
+                    handle.pause()
+                    writer.write(b'{"status": "paused"}')
             else:
                 writer.write(b'{"status": "error", "message": "Torrent not found"}')
 
@@ -80,27 +87,27 @@ async def handle_request(reader, writer):
         elif req_type == "get_progress":
             handle = torrent_handles.get(source)
             if handle:
-                try:
-                    while True:
-                        status = handle.status()
-                        remaining = handle.torrent_file().total_size() - status.total_done
-                        time_left = remaining / status.download_rate if status.download_rate > 0 else 0
+                status = handle.status()
+                remaining = status.total_wanted - status.total_wanted_done
+                time_left = remaining / status.download_rate if status.download_rate > 0 else 0
 
-                        progress_data = {
-                            "status": "downloading" if not status.is_seeding else "seeding",
-                            "download_progress": status.progress * 100,
-                            "download_speed": status.download_rate / 1024,
-                            "time_left": time_left,
-                        }
-                        writer.write((json.dumps(progress_data) + "\n").encode())
-                        await writer.drain()
-                        await asyncio.sleep(1)
-                        if status.is_seeding:
-                            break
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
+                progress_data = {
+                    "name": handle.name(),
+                    "status": "downloading" if not status.is_seeding else "seeding",
+                    "download_progress": status.progress * 100,
+                    "time_left": time_left,
+                    "seeders": status.num_seeds,
+                    "leechers": max(status.num_peers - status.num_seeds, 0),
+                    "peers": status.num_peers,
+                    "download_speed": status.download_rate,  
+                    "downloaded_bytes": status.total_wanted_done,
+                    "total_bytes": max(status.total_wanted, 1),
+
+                }
+                writer.write((json.dumps(progress_data)).encode())
             else:
                 writer.write(b'{"status": "error", "message": "Torrent not found"}')
+
 
         else:
             writer.write(b'{"status": "error", "message": "Unknown request type"}')
@@ -112,7 +119,6 @@ async def handle_request(reader, writer):
     except Exception as e:
         print(f"Error: {e}")
         writer.close()
-        await writer.wait_closed()
 
 async def socket_server():
     Path(SOCKET_PATH).unlink(missing_ok=True)
