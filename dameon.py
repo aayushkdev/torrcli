@@ -44,12 +44,18 @@ async def handle_request(reader, writer):
                 ti = info
 
             status = handle.status()
+            file_list = [
+                {"path": ti.files().file_path(i), "size": ti.files().file_size(i)}
+                for i in range(ti.files().num_files())
+            ]
             metadata = {
                 "name": ti.name(),
                 "size_bytes": ti.total_size(),
                 "num_files": ti.num_files(),
-                "seeders": status.num_seeds,
-                "leechers": status.num_peers - status.num_seeds,
+                "files": file_list,
+                "num_pieces": ti.num_pieces(),
+                "piece_length": ti.piece_length(),
+                "info_hash": str(ti.info_hash()),
             }
             writer.write(json.dumps({"status": "metadata", "data": metadata}).encode())
 
@@ -102,11 +108,30 @@ async def handle_request(reader, writer):
                     "download_speed": status.download_rate,  
                     "downloaded_bytes": status.total_wanted_done,
                     "total_bytes": max(status.total_wanted, 1),
+                    "state": get_torrent_state(handle),
 
                 }
                 writer.write((json.dumps(progress_data)).encode())
             else:
                 writer.write(b'{"status": "error", "message": "Torrent not found"}')
+
+        elif req_type == "list_torrents":
+            torrents = []
+            for handle in ses.get_torrents():
+                status = handle.status()
+                remaining = status.total_wanted - status.total_wanted_done
+                time_left = remaining / status.download_rate if status.download_rate > 0 else 0
+
+                torrents.append({
+                    "name": status.name,
+                    "progress": round(status.progress * 100, 2),
+                    "state": get_torrent_state(handle),
+                    "downloaded": status.total_done,
+                    "total_size": status.total_wanted,
+                    "time_left": time_left,
+                })
+
+            writer.write((json.dumps({"status": "success", "data": torrents})).encode())
 
 
         else:
@@ -126,6 +151,25 @@ async def socket_server():
 
     async with server:
         await server.serve_forever()
+
+def get_torrent_state(handle):
+    if handle.is_paused():
+        return "paused"
+    
+    status = handle.status()
+    
+    state_map = {
+        lt.torrent_status.queued_for_checking: "queued for checking",
+        lt.torrent_status.checking_files: "checking",
+        lt.torrent_status.downloading_metadata: "downloading metadata",
+        lt.torrent_status.downloading: "downloading",
+        lt.torrent_status.finished: "finished",
+        lt.torrent_status.seeding: "seeding",
+        lt.torrent_status.allocating: "allocating",
+        lt.torrent_status.checking_resume_data: "checking resume data",
+    }
+
+    return state_map.get(status.state, "unknown")
 
 def main():
     signal.signal(signal.SIGTERM, clean_exit)
