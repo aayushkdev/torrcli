@@ -9,21 +9,23 @@ console = Console()
 
 def show_metadata(metadata):
     table = Table(title="Torrent Metadata", show_lines=True)
-    table.add_column("Name", style="bold cyan")
-    table.add_column("Size", style="green")
-    table.add_column("Files", style="green")
-    table.add_column("Seeders", style="yellow")
-    table.add_column("Leechers", style="yellow")
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value", style="green")
 
-    table.add_row(
-        metadata["name"],
-        format_size(metadata["size_bytes"]),
-        str(metadata["num_files"]),
-        str(metadata.get("seeders", "N/A")),
-        str(metadata.get("leechers", "N/A")),
-    )
+    table.add_row("Name", metadata["name"])
+    table.add_row("Size", format_size(metadata["size_bytes"]))
+    table.add_row("Files", str(metadata["num_files"]))
+    table.add_row("Pieces", str(metadata.get("num_pieces", "N/A")))
+    table.add_row("Piece Size", format_size(metadata.get("piece_length", 0)))
+    table.add_row("Info Hash", metadata.get("info_hash", "N/A"))
+    files = metadata.get("files", [])
+    if files:
+        files_sorted = sorted(files, key=lambda f: f["size"], reverse=True)
+        file_lines = [f"{f['path']} ({format_size(f['size'])})" for f in files_sorted]
+        table.add_row("File List", "\n".join(file_lines))
 
     console.print(table)
+
 
 def render_ui(name, completed_bytes, total_bytes, eta_sec, progress, speed_bps, seeders, leechers, status_text):
     name_text = Text(name, style="bold underline magenta")
