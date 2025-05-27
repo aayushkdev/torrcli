@@ -29,35 +29,45 @@ async def handle_request(reader, writer):
         save_path = request.get("save_path")
 
         if req_type == "add_torrent":
-            if source.startswith("magnet:"):
-                handle = ses.add_torrent({"url": source, "save_path": save_path})
-                torrent_handles[source] = handle
-                while not handle.has_metadata():
-                    await asyncio.sleep(1)
-                handle.pause()
-                ti = handle.get_torrent_info()
-            else:
-                info = lt.torrent_info(source)
-                handle = ses.add_torrent({"ti": info, "save_path": save_path})
-                handle.pause()
-                torrent_handles[source] = handle
-                ti = info
+            try:
+                if source.startswith("magnet:"):
+                    handle = ses.add_torrent({"url": source, "save_path": save_path})
 
-            status = handle.status()
-            file_list = [
-                {"path": ti.files().file_path(i), "size": ti.files().file_size(i)}
-                for i in range(ti.files().num_files())
-            ]
-            metadata = {
-                "name": ti.name(),
-                "size_bytes": ti.total_size(),
-                "num_files": ti.num_files(),
-                "files": file_list,
-                "num_pieces": ti.num_pieces(),
-                "piece_length": ti.piece_length(),
-                "info_hash": str(ti.info_hash()),
-            }
-            writer.write(json.dumps({"status": "metadata", "data": metadata}).encode())
+                    while not handle.has_metadata():
+                        await asyncio.sleep(1)
+
+                    ti = handle.get_torrent_info()
+                    info_hash = str(ti.info_hash())
+                    torrent_handles[info_hash] = handle
+                    handle.pause()
+                else:
+                    ti = lt.torrent_info(source)
+                    handle = ses.add_torrent({"ti": ti, "save_path": save_path})
+                    handle.pause()
+                    info_hash = str(ti.info_hash())
+                    torrent_handles[info_hash] = handle
+
+                status = handle.status()
+                file_list = [
+                    {"path": ti.files().file_path(i), "size": ti.files().file_size(i)}
+                    for i in range(ti.files().num_files())
+                ]
+                metadata = {
+                    "name": ti.name(),
+                    "size_bytes": ti.total_size(),
+                    "num_files": ti.num_files(),
+                    "files": file_list,
+                    "num_pieces": ti.num_pieces(),
+                    "piece_length": ti.piece_length(),
+                    "info_hash": info_hash,
+                }
+                writer.write(json.dumps({"status": "success", "data": metadata}).encode())
+            
+            except Exception as e:
+                writer.write(json.dumps({
+                        "status": "error",
+                        "message": f"Failed to add torrent: {str(e)}"
+                    }).encode())
 
         elif req_type == "start_download":
             handle = torrent_handles.get(source)
@@ -117,18 +127,20 @@ async def handle_request(reader, writer):
 
         elif req_type == "list_torrents":
             torrents = []
-            for handle in ses.get_torrents():
+            for i, handle in enumerate(ses.get_torrents()):
                 status = handle.status()
                 remaining = status.total_wanted - status.total_wanted_done
                 time_left = remaining / status.download_rate if status.download_rate > 0 else 0
-
+                
                 torrents.append({
+                    "index": i + 1,
                     "name": status.name,
                     "progress": round(status.progress * 100, 2),
                     "state": get_torrent_state(handle),
                     "downloaded": status.total_done,
                     "total_size": status.total_wanted,
                     "time_left": time_left,
+                    "info_hash": str(status.info_hashes.get_best())
                 })
 
             writer.write((json.dumps({"status": "success", "data": torrents})).encode())
