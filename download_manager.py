@@ -73,50 +73,57 @@ async def progress(source):
                 status_text=state
             ))
 
-            if data["state"] == "seeding":
-                console.print("[green]Download complete![/green]")
-                exit_event.set()
-                break
-
             await asyncio.sleep(1)
 
 
 async def download(source, save_path):
-    metadata = await send_to_daemon({
+    response = await send_and_receive({
         "type": "add_torrent",
         "source": source,
         "save_path": save_path
     })
-
-    if metadata:
+    if response["status"] == "success":
+        metadata = response["data"]
         show_metadata(metadata)
 
         if Confirm.ask("Do you want to download this torrent?"):
-            await send_to_daemon({
+            await send_and_receive({
                 "type": "start_download",
-                "source": source,
-                "save_path": save_path
+                "source": metadata["info_hash"],
             })
 
-            await progress(source)
+            await progress(metadata["info_hash"])
         else:
             console.print("[red]Download cancelled. Removing torrent...[/red]")
-            await send_to_daemon({
+            await send_and_receive({
                 "type": "remove_download",
-                "source": source
+                "source": metadata["info_hash"],
             })
+    else:
+        console.print(f"[red]{response["message"]}[/red]")
+
+async def resolve_info_hash(index):
+    response = await send_and_receive({"type": "list_torrents"})
+    if not response["data"]:
+        console.print(f"[red]Invalid index: {index}[/red]")
+        return
+    torrents = response.get("data", [])
+    index_map = {t["index"]: t["info_hash"] for t in torrents}
+    return index_map.get(index)
 
 
 async def list_torrents():
     response = await send_and_receive({"type": "list_torrents"})
 
-    if not response or response.get("status") != "success":
-        console.print("[red]No torrents found or failed to connect.[/red]")
-        return
-
     torrents = response.get("data", [])
 
+    if not torrents:
+        console.print("[bold yellow]No torrents added yet.[/bold yellow]")
+        console.print("Use [green]torrcli download <magnet or .torrent file>[/green] to add a torrent.")
+        return
+
     table = Table(title="Current Torrents", show_lines=True)
+    table.add_column("#", justify="right")
     table.add_column("Name", style="cyan", overflow="fold")
     table.add_column("Progress", justify="right", style="green")
     table.add_column("State", style="yellow")
@@ -125,6 +132,7 @@ async def list_torrents():
 
     for t in torrents:
         table.add_row(
+            str(t["index"]),
             t["name"],
             f"{t['progress']}%",
             t["state"],
@@ -133,3 +141,30 @@ async def list_torrents():
         )
 
     console.print(table)
+
+
+async def info(index):
+    info_hash = await resolve_info_hash(index)
+    if info_hash:
+        await progress(info_hash)
+
+
+async def pause(index):
+    info_hash = await resolve_info_hash(index)
+    if info_hash:
+        await send_and_receive({"type": "pause_download", "source": info_hash})
+        console.print(f"[yellow]Torrent at index {index} paused.[/yellow]")
+
+
+async def resume(index):
+    info_hash = await resolve_info_hash(index)
+    if info_hash:
+        await send_and_receive({"type": "start_download", "source": info_hash})
+        console.print(f"[green]Torrent at index {index} resumed.[/green]")
+
+
+async def remove(index):
+    info_hash = await resolve_info_hash(index)
+    if info_hash:
+        await send_and_receive({"type": "remove_download", "source": info_hash})
+        console.print(f"[red]Torrent at index {index} removed.[/red]")

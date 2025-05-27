@@ -3,7 +3,7 @@
 import argparse
 import os
 import asyncio
-from download_manager import download, list_torrents
+from download_manager import download, list_torrents, info, pause, resume, remove
 from pathlib import Path
 
 def is_magnet_link(value: str) -> bool:
@@ -20,7 +20,19 @@ async def main():
     download_parser.add_argument("source", help="Magnet link or .torrent file")
     download_parser.add_argument("--save", help="Save path", default="~/Downloads")
 
-    list_parser = subparsers.add_parser("list", help="List all torrents")
+    subparsers.add_parser("list", help="List all torrents")
+
+    info_parser = subparsers.add_parser("info", help="Show detailed info of a torrent")
+    info_parser.add_argument("index", type=int, help="Index of the torrent")
+
+    pause_parser = subparsers.add_parser("pause", help="Pause a torrent")
+    pause_parser.add_argument("index", type=int, help="Index of the torrent")
+
+    resume_parser = subparsers.add_parser("resume", help="Resume a torrent")
+    resume_parser.add_argument("index", type=int, help="Index of the torrent")
+
+    remove_parser = subparsers.add_parser("remove", help="Remove a torrent")
+    remove_parser.add_argument("index", type=int, help="Index of the torrent")
 
     args = parser.parse_args()
 
@@ -33,6 +45,18 @@ async def main():
             await download(args.source, args.save)
         else:
             print("Error: Not a valid magnet link or .torrent file path.")
+
+    elif args.command == "info":
+        await info(args.index)
+
+    elif args.command == "pause":
+        await pause(args.index)
+
+    elif args.command == "resume":
+        await resume(args.index)
+
+    elif args.command == "remove":
+        await remove(args.index)
 
     else:
         parser.print_help()
