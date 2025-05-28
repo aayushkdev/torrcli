@@ -116,6 +116,7 @@ async def handle_request(reader, writer):
                     "leechers": max(status.num_peers - status.num_seeds, 0),
                     "peers": status.num_peers,
                     "download_speed": status.download_rate,  
+                    "upload_speed": status.upload_rate, 
                     "downloaded_bytes": status.total_wanted_done,
                     "total_bytes": max(status.total_wanted, 1),
                     "state": get_torrent_state(handle),

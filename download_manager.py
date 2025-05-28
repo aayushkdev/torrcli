@@ -1,6 +1,6 @@
 import asyncio
 from ui import console, show_metadata, render_ui
-from client import send_to_daemon, send_and_receive
+from client import send_and_receive
 from utils import setup_nonblocking_input, restore_input_mode, get_pressed_key, format_size, format_time
 from rich.live import Live
 from rich.prompt import Confirm
@@ -47,7 +47,7 @@ async def progress(source):
 
     asyncio.create_task(handle_keys())
 
-    with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
+    with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
         while not exit_event.is_set():
             data = await send_and_receive({
                 "type": "get_progress",
@@ -67,7 +67,8 @@ async def progress(source):
                 total_bytes=data.get("total_bytes", 1),
                 eta_sec=data.get("time_left", 0),
                 progress=progress_bar,
-                speed_bps=data.get("download_speed", 0),
+                download_speed=data.get("download_speed", 0),
+                upload_speed=data.get("upload_speed", 0),
                 seeders=data.get("seeders", 0),
                 leechers=data.get("leechers", 0),
                 status_text=state
