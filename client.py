@@ -28,17 +28,3 @@ async def send_and_receive(data):
         return json.loads(raw.decode())
     except json.JSONDecodeError:
         return None
-
-async def send_to_daemon(data):
-    response = await send_and_receive(data)
-
-    if response is None:
-        return None
-
-    if response.get("status") == "metadata":
-        return response["data"]
-    elif response.get("status") == "error":
-        console.print(f"[red]Daemon response:[/red] {response}")
-        return None
-    else:
-        return response

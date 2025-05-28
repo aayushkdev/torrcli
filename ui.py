@@ -27,7 +27,7 @@ def show_metadata(metadata):
     console.print(table)
 
 
-def render_ui(name, completed_bytes, total_bytes, eta_sec, progress, speed_bps, seeders, leechers, status_text):
+def render_ui(name, completed_bytes, total_bytes, eta_sec, progress, download_speed, upload_speed, seeders, leechers, status_text):
     name_text = Text(name, style="bold underline magenta")
 
     eta_line = Text(
@@ -36,7 +36,7 @@ def render_ui(name, completed_bytes, total_bytes, eta_sec, progress, speed_bps, 
     )
 
     peer_speed_line = Text(
-        f"Seeders: {seeders} | Leechers: {leechers} | Download Speed: {format_speed(speed_bps)}",
+        f"Seeders: {seeders} | Leechers: {leechers} | DL: {format_speed(download_speed)} | UL: {format_speed(upload_speed)}",
         style="green"
     )
 
