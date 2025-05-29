@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from ui import console
+from torrcli.client.ui import console
 
 SOCKET_PATH = "/tmp/torrcli_daemon.sock"
 

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torrcli"
+version = "0.1.0"
+description = "A cli based torrent client built with libtorrent"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Aayush Kumar", email = "aayush214.kumar@gmail.com" }
+]
+dependencies = [
+    "rich>=14.0.0",
+    "libtorrent>=2.0.0",
+    "appdirs >= 1.4.4"
+]
+
+[project.scripts]
+torrcli = "torrcli.cli:run"
+
+[tool.setuptools]
+packages = ["torrcli", "torrcli.client", "torrcli.client.commands", "torrcli.daemon"]

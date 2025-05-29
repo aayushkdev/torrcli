@@ -1,0 +1,20 @@
+post_install() {
+    echo "Enabling and starting torrcli-daemon service..."
+    INSTALL_USER=$(logname 2>/dev/null || echo root)
+    sed -i "s|__INSTALL_USER__|$INSTALL_USER|" /usr/lib/systemd/system/torrcli-daemon.service
+    systemctl daemon-reload
+    systemctl enable --now torrcli-daemon.service
+}
+
+post_upgrade() {
+    echo "Reloading daemon and restarting torrcli-daemon service..."
+    systemctl daemon-reload
+    systemctl restart torrcli-daemon.service
+}
+
+pre_remove() {
+    echo "Stopping torrcli-daemon service..."
+    systemctl stop torrcli-daemon.service
+    systemctl disable torrcli-daemon.service
+    systemctl daemon-reload
+}

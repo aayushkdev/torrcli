@@ -3,7 +3,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.panel import Panel
 from rich.align import Align
-from utils import format_size, format_speed, format_time
+from torrcli.client.utils import format_size, format_speed, format_time
 
 console = Console()
 
