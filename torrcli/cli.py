@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
-
 import argparse
 import os
 import asyncio
-from download_manager import download, list_torrents, info, pause, resume, remove
 from pathlib import Path
+from torrcli.client.commands.download import download
+from torrcli. client.commands.listings import list_torrents, info
+from torrcli.client.commands.manage import pause, resume, remove
 
 def is_magnet_link(value: str) -> bool:
     return value.startswith("magnet:?xt=urn:")
@@ -18,7 +18,7 @@ async def main():
 
     download_parser = subparsers.add_parser("download", help="Download a torrent")
     download_parser.add_argument("source", help="Magnet link or .torrent file")
-    download_parser.add_argument("--save", help="Save path", default="~/Downloads")
+    download_parser.add_argument("--save", help="Save path", default=str(Path.home() / "Downloads"))
 
     subparsers.add_parser("list", help="List all torrents")
 
@@ -61,5 +61,8 @@ async def main():
     else:
         parser.print_help()
 
-if __name__ == "__main__":
+def run():
     asyncio.run(main())
+
+if __name__ == "__main__":
+    run()
