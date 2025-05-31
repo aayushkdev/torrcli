@@ -35,11 +35,16 @@ async def progress(source):
         TextColumn("[green]{task.percentage:>3.1f}%"),
     )
 
-    init_data = await send_and_receive({
+    init_response = await send_and_receive({
         "type": "get_progress",
         "source": source
     })
 
+    if not init_response or init_response.get("status") != "success":
+        console.print("[red]Failed to fetch initial progress.[/red]")
+        return
+
+    init_data = init_response["data"]
     state = init_data.get("state", "loading").capitalize()
     task_id = progress_bar.add_task(f"{state}...", total=100)
 
@@ -47,23 +52,25 @@ async def progress(source):
 
     with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
         while not exit_event.is_set():
-            data = await send_and_receive({
+            response = await send_and_receive({
                 "type": "get_progress",
                 "source": source
             })
 
-            if not data or "state" not in data:
+            if not response or response.get("status") != "success":
                 break
 
+            data = response["data"]
+
             state = data["state"].capitalize()
-            progress_bar.update(task_id, completed=data["download_progress"])
+            progress_bar.update(task_id, completed=data["progress"])
             progress_bar.update(task_id, description=f"{state}...")
 
             live.update(render_ui(
                 name=data.get("name", "Unknown Torrent"),
-                completed_bytes=data.get("downloaded_bytes", 0),
-                total_bytes=data.get("total_bytes", 1),
-                eta_sec=data.get("time_left", 0),
+                completed_bytes=data.get("downloaded", 0),
+                total_bytes=data.get("size", 1),
+                eta_sec=data.get("eta", 0),
                 progress=progress_bar,
                 download_speed=data.get("download_speed", 0),
                 upload_speed=data.get("upload_speed", 0),

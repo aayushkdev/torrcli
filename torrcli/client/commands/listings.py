@@ -36,8 +36,8 @@ async def list_torrents():
             t["name"],
             f"{t['progress']}%",
             t["state"],
-            f"{format_size(t["downloaded"])}/{format_size(t["total_size"])}",
-            format_time(t["time_left"]),
+            f"{format_size(t["downloaded"])}/{format_size(t["size"])}",
+            format_time(t["eta"]),
         )
 
     console.print(table)

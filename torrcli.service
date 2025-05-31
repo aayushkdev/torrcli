@@ -9,7 +9,7 @@ Restart=on-failure
 User=root
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=torrcli-daemon
+SyslogIdentifier=torrcli
 
 [Install]
 WantedBy=multi-user.target
