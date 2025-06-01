@@ -21,6 +21,8 @@ async def handle(request, writer):
         "upload_speed": status.upload_rate,
         "seeders": status.num_seeds,
         "leechers": max(status.num_peers - status.num_seeds, 0),
+        "connected_peers": status.num_peers,
+        "total_peers": len(handle.get_peer_info()),
         "state": get_torrent_state(handle),
     }
     await send_success(writer, progress_data)

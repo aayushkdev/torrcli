@@ -50,7 +50,7 @@ async def progress(source):
 
     asyncio.create_task(handle_keys())
 
-    with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
+    with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
         while not exit_event.is_set():
             response = await send_and_receive({
                 "type": "get_progress",
@@ -76,7 +76,9 @@ async def progress(source):
                 upload_speed=data.get("upload_speed", 0),
                 seeders=data.get("seeders", 0),
                 leechers=data.get("leechers", 0),
-                status_text=state
+                connected_peers=data.get("connected_peers", 0),
+                total_peers=data.get("total_peers", 0),
+                status_text=state,
             ))
 
             await asyncio.sleep(1)
