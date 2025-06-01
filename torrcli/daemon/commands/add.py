@@ -1,15 +1,14 @@
-import json
 import asyncio
 import libtorrent as lt
 from pathlib import Path
-from torrcli.daemon.config import TORRENT_DATA_DIR, DEFAULT_SAVE_PATH
+from torrcli.daemon.config import DATA_DIR, DEFAULT_SAVE_PATH
 from torrcli.daemon.session import ses, torrent_handles
 from torrcli.daemon.commands.utils import send_success, send_error
 
 async def handle(request, writer):
     try:
         source = request.get("source")
-        save_path = request.get("save_path", DEFAULT_SAVE_PATH)
+        save_path = request.get("save_path") or str(DEFAULT_SAVE_PATH)
         if source.startswith("magnet:"):
             handle = ses.add_torrent({"url": source, "save_path": save_path})
             while not handle.has_metadata():
@@ -23,15 +22,15 @@ async def handle(request, writer):
         torrent_handles[info_hash] = handle if source.startswith("magnet:") else ses.add_torrent({
             "ti": ti,
             "save_path": save_path,
-            **({"resume_data": lt.bdecode((TORRENT_DATA_DIR / f"{info_hash}.fastresume").read_bytes())}
-               if (TORRENT_DATA_DIR / f"{info_hash}.fastresume").exists() else {})
+            **({"resume_data": lt.bdecode((DATA_DIR / f"{info_hash}.fastresume").read_bytes())}
+               if (DATA_DIR / f"{info_hash}.fastresume").exists() else {})
         })
 
         handle = torrent_handles[info_hash]
         handle.pause()
         handle.save_resume_data()
 
-        torrent_path = TORRENT_DATA_DIR / f"{info_hash}.torrent"
+        torrent_path = DATA_DIR / f"{info_hash}.torrent"
         if not torrent_path.exists():
             if source.startswith("magnet:"):
                 t = lt.create_torrent(ti)
@@ -53,3 +52,4 @@ async def handle(request, writer):
         await send_success(writer, metadata)
     except Exception as e:
         await send_error(writer, str(e))
+        

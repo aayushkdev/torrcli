@@ -22,4 +22,4 @@ dependencies = [
 torrcli = "torrcli.cli:run"
 
 [tool.setuptools]
-packages = ["torrcli", "torrcli.client", "torrcli.client.commands", "torrcli.daemon"]
+packages = ["torrcli", "torrcli.client", "torrcli.client.commands", "torrcli.daemon", "torrcli.daemon.commands"]

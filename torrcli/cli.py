@@ -18,7 +18,7 @@ async def main():
 
     download_parser = subparsers.add_parser("download", help="Download a torrent")
     download_parser.add_argument("source", help="Magnet link or .torrent file")
-    download_parser.add_argument("--save", help="Save path", default=str(Path.home() / "Downloads"))
+    download_parser.add_argument("--save", help="Save path")
 
     subparsers.add_parser("list", help="List all torrents")
 

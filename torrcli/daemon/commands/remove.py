@@ -1,6 +1,6 @@
 from torrcli.daemon.commands.utils import send_response, send_error
 from torrcli.daemon.session import torrent_handles, ses
-from torrcli.daemon.config import TORRENT_DATA_DIR
+from torrcli.daemon.config import DATA_DIR
 
 async def handle(request, writer):
     info_hash = request.get("source")
@@ -11,8 +11,8 @@ async def handle(request, writer):
 
     ses.remove_torrent(handle)
 
-    fastresume_file = TORRENT_DATA_DIR / f"{info_hash}.fastresume"
-    torrent_file = TORRENT_DATA_DIR / f"{info_hash}.torrent"
+    fastresume_file = DATA_DIR / f"{info_hash}.fastresume"
+    torrent_file = DATA_DIR / f"{info_hash}.torrent"
     for f in (fastresume_file, torrent_file):
         if f.exists():
             f.unlink()

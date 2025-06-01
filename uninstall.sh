@@ -19,6 +19,8 @@ sudo rm -f /usr/bin/torrcli
 
 sudo rm -rf "$site_packages_dir/torrcli-*.dist-info"
 
+sudo rm -rf /usr/share/torrcli
+
 rm -f dist/*.whl
 
 echo "✅ torrcli uninstalled!"
