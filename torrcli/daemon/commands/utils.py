@@ -15,10 +15,13 @@ async def send_success(writer, data):
     await send_response(writer, {"status": "success", "data": data})
 
 def calc_eta(status):
-    if status.download_rate > 0:
+    rate = status.download_rate
+
+    if rate < 10:
+        return -1
+    else:
         remaining = status.total_wanted - status.total_done
-        return math.ceil(remaining / status.download_rate)
-    return -1
+        return math.ceil(remaining / rate)
 
 def get_torrent_state(handle):
     if handle.is_paused():

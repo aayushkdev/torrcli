@@ -14,6 +14,8 @@ def format_speed(speed_kbps):
     return format_size(speed_kbps) + "/s"
 
 def format_time(seconds):
+    if seconds < 0:
+        return "∞ sec"
     seconds = int(seconds)
     if seconds < 60:
         return f"{seconds} sec"
