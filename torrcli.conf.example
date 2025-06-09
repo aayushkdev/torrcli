@@ -65,12 +65,15 @@ max_active_seeds = 5
 share_ratio_limit = 200
 
 
-[resume]
-# Auto-start torrents from previous session on daemon startup
+[session]
+# Resume incomplete torrents on startup
 auto_start = true
 
-# Interval in seconds to save resume data (used for continuing downloads after restart)
-save_resume_data_interval = 300
+# Automatically remove torrent after download completes (overrides seed_after_download)
+remove_after_download = false
+
+# Automatically start seeding after download completes
+seed_after_download = true
 
 
 [security]

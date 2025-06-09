@@ -15,6 +15,7 @@ from torrcli.daemon.config import (
     MAX_ACTIVE_DOWNLOADS,
     MAX_ACTIVE_SEEDS,
     SHARE_RATIO_LIMIT,
+    AUTO_START,
     ANONYMOUS_MODE,
     VALIDATE_HTTPS_TRACKERS,
     DHT_PRIVACY_LOOKUPS,
@@ -38,6 +39,8 @@ from torrcli.daemon.config import (
 
 def create_session():
     ses = lt.session()
+
+    ses.set_alert_mask(lt.alert.category_t.status_notification)
 
     settings = ses.get_settings()
 
@@ -103,7 +106,11 @@ def load_resume_and_torrents():
                     atp.ti = ti
 
                 handle = ses.add_torrent(atp)
-                handle.auto_managed(True)
+
+                if not AUTO_START:
+                    handle.pause()
+                    handle.auto_managed(False)
+
                 torrent_handles[info_hash] = handle
                 print(f"Loaded torrent {ti.name()} with resume data")
             else:

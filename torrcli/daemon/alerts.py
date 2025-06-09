@@ -2,7 +2,8 @@ import asyncio
 import libtorrent as lt
 from pathlib import Path
 from torrcli.daemon.session import ses, save_all_resume_data, on_save_resume_data
-from torrcli.daemon.config import SOCKET_PATH
+from torrcli.daemon.config import SOCKET_PATH, SEED_AFTER_DOWNLOAD, REMOVE_AFTER_DOWNLOAD
+from torrcli.daemon.commands.remove import remove_torrent
 
 shutdown_event = asyncio.Event()
 
@@ -16,9 +17,14 @@ async def alert_loop():
     while True:
         alerts = ses.pop_alerts()
         for alert in alerts:
-            if isinstance(alert, lt.save_resume_data_alert):
-                on_save_resume_data(alert)
-                pending_resume -= 1
+            if isinstance(alert, lt.torrent_finished_alert):
+                if REMOVE_AFTER_DOWNLOAD:
+                    info_hash = str(alert.handle.info_hashes().get_best())
+                    await remove_torrent(info_hash)
+
+                if not SEED_AFTER_DOWNLOAD:
+                    handle = alert.handle
+                    handle.pause()
 
         if shutdown_event.is_set():
             if pending_resume <= 0:

@@ -38,7 +38,7 @@ DEFAULTS = {
         "max_active_seeds": 5,
         "share_ratio_limit": 200,
     },
-    "resume": {
+    "session": {
         "auto_start": True,
         "save_resume_data_interval": 300,
     },
@@ -113,8 +113,9 @@ MAX_ACTIVE_DOWNLOADS = get("max_active_downloads", "limits", cast=int)
 MAX_ACTIVE_SEEDS = get("max_active_seeds", "limits", cast=int)
 SHARE_RATIO_LIMIT = get("share_ratio_limit", "limits", cast=int)
 
-AUTO_START = get("auto_start", "resume", cast=bool)
-SAVE_RESUME_DATA_INTERVAL = get("save_resume_data_interval", "resume", cast=int)
+AUTO_START = get("auto_start", "session", cast=bool)
+REMOVE_AFTER_DOWNLOAD = get("remove_after_download", "session", cast=bool)
+SEED_AFTER_DOWNLOAD = get("seed_after_download", "session", cast=bool)
 
 ANONYMOUS_MODE = get("anonymous_mode", "security", cast=bool)
 VALIDATE_HTTPS_TRACKERS = get("validate_https_trackers", "security", cast=bool)
