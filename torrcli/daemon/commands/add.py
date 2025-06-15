@@ -9,6 +9,7 @@ async def handle(request, writer):
     try:
         source = request.get("source")
         save_path = request.get("save_path") or str(DEFAULT_SAVE_PATH)
+        stream = request.get("stream", False)
         if source.startswith("magnet:"):
             handle = ses.add_torrent({"url": source, "save_path": save_path})
             while not handle.has_metadata():
@@ -28,7 +29,11 @@ async def handle(request, writer):
 
         handle = torrent_handles[info_hash]
         handle.pause()
+        handle.auto_managed(False)
         handle.save_resume_data()
+
+        if stream:
+            handle.set_sequential_download(True)
 
         torrent_path = DATA_DIR / f"{info_hash}.torrent"
         if not torrent_path.exists():

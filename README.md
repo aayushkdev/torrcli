@@ -64,14 +64,16 @@ The default configuration file is located at `~/.config/torrcli/config.conf`.
 
 Detailed commands:
 
-- `torrcli download <source> [--save SAVE_PATH]`
+- `torrcli add <source> [--save/-s SAVE_PATH] [--stream/-t]`
     Download a torrent from the specified source.
 
     - `<source>`: Can be a magnet link (e.g., `"magnet:?xt=urn:btih:..."`) or a path to a `.torrent` file (e.g., `/path/to/your/file.torrent`).
 
-    - `--save SAVE_PATH`: (Optional) Specify the directory where the downloaded files will be saved. If not provided, the `default_save_path` from your `config.conf` will be used.
+    - `--save/-s SAVE_PATH`: (Optional) Specify the directory where the downloaded files will be saved. If not provided, the `default_save_path` from your `config.conf` will be used.
 
-- `torrcli list`
+    - `--stream/-t`: (Optional) Specify if the files will be downloaded sequentially
+
+- `torrcli ls`
     List all active torrents, showing their status, progress, and index.
 
 - `torrcli info <index>`
@@ -83,7 +85,7 @@ Detailed commands:
 - `torrcli resume <index>`
     Resume a paused torrent.
 
-- `torrcli remove <index>`
+- `torrcli rm <index>`
     Remove a torrent from the list. This does not delete the downloaded files by default.
 
 ```markdown

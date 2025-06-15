@@ -3,11 +3,12 @@ from torrcli.client.ipc import send_and_receive
 from torrcli.client.ui import console, show_metadata
 from torrcli.client.commands.progress import progress
 
-async def download(source, save_path):
+async def download(source, save_path, stream=False):
     response = await send_and_receive({
         "type": "add_torrent",
         "source": source,
-        "save_path": save_path
+        "save_path": save_path,
+        "stream": stream,
     })
     if response["status"] == "success":
         metadata = response["data"]
