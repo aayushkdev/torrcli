@@ -19,7 +19,7 @@ async def list_torrents():
 
     if not torrents:
         console.print("[bold yellow]No torrents added yet.[/bold yellow]")
-        console.print("Use [green]torrcli download <magnet or .torrent file>[/green] to add a torrent.")
+        console.print("Use [green]torrcli add <magnet or .torrent file>[/green] to add a torrent.")
         return
 
     table = Table(title="Current Torrents", show_lines=True)

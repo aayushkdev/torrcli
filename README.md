@@ -40,8 +40,7 @@ cd torrcli
 
 2. **Install Python Dependencies:**
 ```bash
-pip install rich
-pip install libtorrent
+pip install rich, libtorrent, torrfetch
 ```
 
 3. **Run the Installer Script:**
@@ -65,7 +64,7 @@ The default configuration file is located at `~/.config/torrcli/config.conf`.
 Detailed commands:
 
 - `torrcli add <source> [--save/-s SAVE_PATH] [--stream/-t]`
-    Download a torrent from the specified source.
+    Downloads a torrent from the specified source.
 
     - `<source>`: Can be a magnet link (e.g., `"magnet:?xt=urn:btih:..."`) or a path to a `.torrent` file (e.g., `/path/to/your/file.torrent`).
 
@@ -73,20 +72,24 @@ Detailed commands:
 
     - `--stream/-t`: (Optional) Specify if the files will be downloaded sequentially
 
+- `torrcli search <torrent-name> [--save/-s SAVE_PATH] [--stream/-t]`
+    Searches for a torrent from various sources and lets you interactively select a torrent to download.
+    It has all the same flags as `torrcli add`
+
 - `torrcli ls`
-    List all active torrents, showing their status, progress, and index.
+    Lists all active torrents, showing their status, progress, and index.
 
 - `torrcli info <index>`
-    Show detailed information about a specific torrent.
+    Shows detailed information about a specific torrent.
 
 - `torrcli pause <index>`
-    Pause a running torrent.
+    Pauses a running torrent.
 
 - `torrcli resume <index>`
-    Resume a paused torrent.
+    Resumes a paused torrent.
 
 - `torrcli rm <index>`
-    Remove a torrent from the list. This does not delete the downloaded files by default.
+    Removes a torrent from the list. This does not delete the downloaded files by default.
 
 ```markdown
 (Note: Replace `<index>` with the actual numerical index displayed by `torrcli list`)
