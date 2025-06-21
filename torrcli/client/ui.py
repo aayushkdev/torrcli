@@ -59,3 +59,35 @@ def render_ui(name, completed_bytes, total_bytes, eta_sec, progress, download_sp
     )
 
     return panel
+
+
+def show_torrent_search_results(results, query):
+    console.print(f"[bold underline]Search Results for: {query}[/bold underline]\n")
+
+    total = len(results)
+    reversed_results = list(reversed(results))
+
+    max_title_len = 80
+    index_width = len(str(total))
+
+    for i, r in enumerate(reversed_results):
+        idx = total - i
+        idx_str = f"{idx:<{index_width}}"
+
+        title = r['title'][:max_title_len]
+        size = r['size']
+        seeders = r['seeders']
+        leechers = r['leechers']
+        source = r['source']
+
+        console.print(
+            f"[bold cyan]{idx_str}[/] [white]{title}[/white]"
+        )
+
+        console.print(
+            f"{' ' * (index_width + 1)}"
+            f"  [green]{size}[/green] "
+            f"[yellow]{seeders} seeders[/yellow], "
+            f"[red]{leechers} leechers[/red] "
+            f"— [dim]{source}[/dim]"
+        )

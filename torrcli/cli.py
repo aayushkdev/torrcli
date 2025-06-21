@@ -4,6 +4,7 @@ import asyncio
 from torrcli.client.commands.download import download
 from torrcli. client.commands.listings import list_torrents, info
 from torrcli.client.commands.manage import pause, resume, remove
+from torrcli.client.commands.search import search_and_download
 
 def is_magnet_link(value: str) -> bool:
     return value.startswith("magnet:?xt=urn:")
@@ -34,6 +35,11 @@ async def main():
     remove_parser = subparsers.add_parser("rm", help="Remove a torrent")
     remove_parser.add_argument("index", type=int, help="Index of the torrent")
 
+    search_parser = subparsers.add_parser("search", help="Search torrents")
+    search_parser.add_argument("query", help="Movie or torrent search term")
+    search_parser.add_argument("-s", "--save", help="Save path")
+    search_parser.add_argument("-t", "--stream", action="store_true", help="Enable stream mode (sequential download)")
+
     args = parser.parse_args()
 
 
@@ -58,11 +64,17 @@ async def main():
     elif args.command == "rm":
         await remove(args.index)
 
+    elif args.command == "search":
+        await search_and_download(args.query, args.save, args.stream)
+
     else:
         parser.print_help()
 
 def run():
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print()
 
 if __name__ == "__main__":
     run()

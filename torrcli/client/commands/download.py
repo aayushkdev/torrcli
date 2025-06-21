@@ -4,6 +4,8 @@ from torrcli.client.ui import console, show_metadata
 from torrcli.client.commands.progress import progress
 
 async def download(source, save_path, stream=False):
+    console.print(f"\n[bold yellow]Fetching metadata...[/bold yellow]")
+    
     response = await send_and_receive({
         "type": "add_torrent",
         "source": source,
