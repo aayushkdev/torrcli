@@ -4,11 +4,11 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 -m torrcli.daemon.daemon
+ExecStart=__PYTHON__ -m torrcli.daemon.daemon
 Restart=on-failure
 User=__USER__
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=jounal
+StandardError=journal
 SyslogIdentifier=torrcli
 
 [Install]

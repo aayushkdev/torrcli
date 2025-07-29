@@ -9,7 +9,7 @@ from torrcli.client.ui import show_metadata, show_torrent_search_results
 console = Console()
 
 async def search_and_download(query, save_path, stream=False):
-    results = await search_torrents_async(query)
+    results = await search_torrents_async(query, mode="fallback")
     if not results:
         console.print(f"[bold red]No results found for '{query}'[/bold red]")
         return

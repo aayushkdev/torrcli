@@ -1,46 +1,11 @@
 import libtorrent as lt
-from torrcli.daemon.config import (
-    DATA_DIR,
-    LISTEN_INTERFACES,
-    DHT_ENABLED,
-    LSD_ENABLED,
-    UPNP_ENABLED,
-    NATPMP_ENABLED,
-    INCOMING_UTP_ENABLED,
-    OUTGOING_UTP_ENABLED,
-    INCOMING_TCP_ENABLED,
-    OUTGOING_TCP_ENABLED,
-    MAX_DOWNLOAD_SPEED,
-    MAX_UPLOAD_SPEED,
-    MAX_ACTIVE_DOWNLOADS,
-    MAX_ACTIVE_SEEDS,
-    SHARE_RATIO_LIMIT,
-    AUTO_START,
-    ANONYMOUS_MODE,
-    VALIDATE_HTTPS_TRACKERS,
-    DHT_PRIVACY_LOOKUPS,
-    DHT_IGNORE_DARK_INTERNET,
-    SSRF_MITIGATION,
-    OUT_ENC_POLICY,
-    IN_ENC_POLICY,
-    ALLOWED_ENC_LEVEL,
-    PREFER_RC4,
-    PROXY_TYPE,
-    PROXY_HOSTNAME,
-    PROXY_PORT,
-    PROXY_USERNAME,
-    PROXY_PASSWORD,
-    PROXY_HOSTNAMES,
-    PROXY_PEER_CONNECTIONS,
-    PROXY_TRACKER_CONNECTIONS,
-    FORCE_PROXY
-)
-
+from pathlib import Path
+from torrcli.daemon.config import *
+from typing import Dict
 
 def create_session():
     ses = lt.session()
-
-    ses.set_alert_mask(lt.alert.category_t.status_notification)
+    ses.set_alert_mask(lt.alert.category_t.status_notification | lt.alert.category_t.storage_notification)
 
     settings = ses.get_settings()
 
@@ -90,7 +55,7 @@ def create_session():
 
 ses = create_session()
 torrent_handles = {}
-
+pending_resume_saves = {}
 
 def load_resume_and_torrents():
     for fastresume_file in DATA_DIR.glob("*.fastresume"):
@@ -114,23 +79,34 @@ def load_resume_and_torrents():
                 torrent_handles[info_hash] = handle
                 print(f"Loaded torrent {ti.name()} with resume data")
             else:
-                print(f"Missing torrent file for info hash {info_hash}, skipping fast resume")
+                print(f"Missing torrent file for info hash {info_hash}, skipping")
         except Exception as e:
             print(f"Failed to load resume data for {info_hash}: {e}")
 
 
 def save_all_resume_data():
-    for handle in ses.get_torrents():
-        handle.save_resume_data()
+    global pending_resume_saves
+    pending_resume_saves = {}
 
+    for handle in ses.get_torrents():
+        if handle.need_save_resume_data():
+            info_hash = str(handle.info_hashes().get_best())
+            pending_resume_saves[info_hash] = False
+            handle.save_resume_data()
 
 def on_save_resume_data(alert):
-    handle = alert.handle
-    info_hash = str(handle.info_hashes().get_best())
-    data = lt.bencode(alert.resume_data)
+    info_hash = str(alert.handle.info_hashes().get_best())
     file_path = DATA_DIR / f"{info_hash}.fastresume"
     try:
+        data = lt.bencode(alert.resume_data)
         file_path.write_bytes(data)
-        print(f"Saved fast resume data for {info_hash}")
+        pending_resume_saves[info_hash] = True
+        print(f"Saved resume data for {info_hash}")
     except Exception as e:
-        print(f"Failed to save fast resume data for {info_hash}: {e}")
+        print(f"Failed to save resume data for {info_hash}: {e}")
+        pending_resume_saves[info_hash] = True
+
+def on_save_resume_failed(alert):
+    info_hash = str(alert.handle.info_hashes().get_best())
+    print(f"Failed to save resume for {info_hash}: {alert.message()}")
+    pending_resume_saves[info_hash] = True

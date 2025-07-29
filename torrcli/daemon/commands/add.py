@@ -44,7 +44,7 @@ async def handle(request, writer):
                 Path(source).replace(torrent_path)
 
         files = ti.files()
-        file_list = [{"path": files.file_path(i), "size": files.file_size(i)} for i in range(files.num_files())]
+        file_list = [{"path": files.file_path(i), "size": files.file_size(i)} for i in range(min(files.num_files(), 10))]
         metadata = {
             "name": ti.name(),
             "size_bytes": ti.total_size(),
