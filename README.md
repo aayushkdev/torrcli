@@ -2,6 +2,10 @@
 
 A feature-rich, beautiful, and efficient terminal-based BitTorrent client built with Python, leveraging `rich` for stunning console UI and `libtorrent` for robust torrenting capabilities.
 
+<img width="881" height="336" alt="Screenshot_20250814_213459" src="https://github.com/user-attachments/assets/81d5a1d3-6fd4-4292-8471-aff4d16519df" />
+
+
+
 ## 🌟 Features
 
 - **Intuitive Command-Line Interface**: Navigate and manage your torrents directly from your terminal.
