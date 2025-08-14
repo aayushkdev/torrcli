@@ -30,25 +30,22 @@ yay -S torrcli
 
 ### Option 2: Manual Install (Any Linux Distribution)
 
+**pipx is required before installing so use apt/pacman/rpm to install pipx before continuing**
+
 If you're not using Arch or prefer manual installation, follow these steps:
 
 1. **Clone the Repository:**
 ```bash
-git clone https://github.com/yourusername/torrcli.git
+git clone https://github.com/aayushkdev/torrcli.git
 cd torrcli
 ```
 
-2. **Install Python Dependencies:**
-```bash
-pip install rich, libtorrent, torrfetch
-```
-
-3. **Run the Installer Script:**
+2. **Run the Installer Script:**
 ```bash
 ./install.sh
 ```
 
-4. **To Uninstall:**
+3. **To Uninstall:**
 ```bash
 ./uninstall.sh
 ```
