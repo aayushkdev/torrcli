@@ -22,6 +22,7 @@ DEFAULTS = {
     },
     "network": {
         "listen_interfaces": "0.0.0.0:6881",
+        "outgoing_interfaces": "",
         "dht_enabled": True,
         "lsd_enabled": False,
         "upnp_enabled": True,
@@ -98,6 +99,7 @@ DEFAULT_SAVE_PATH = Path(get("default_save_path")).expanduser()
 LOG_LEVEL = get("log_level")
 
 LISTEN_INTERFACES = get("listen_interfaces", "network")
+OUTGOING_INTERFACES = get("outgoing_interfaces", "network")
 DHT_ENABLED = get("dht_enabled", "network", cast=bool)
 LSD_ENABLED = get("lsd_enabled", "network", cast=bool)
 UPNP_ENABLED = get("upnp_enabled", "network", cast=bool)

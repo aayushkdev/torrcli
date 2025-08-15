@@ -1,7 +1,6 @@
 import libtorrent as lt
 from pathlib import Path
 from torrcli.daemon.config import *
-from typing import Dict
 
 def create_session():
     ses = lt.session()
@@ -10,6 +9,7 @@ def create_session():
     settings = ses.get_settings()
 
     settings["listen_interfaces"] = LISTEN_INTERFACES
+    settings["outgoing_interfaces"] = OUTGOING_INTERFACES
     settings["enable_dht"] = DHT_ENABLED
     settings["enable_lsd"] = LSD_ENABLED
     settings["enable_upnp"] = UPNP_ENABLED

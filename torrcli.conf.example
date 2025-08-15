@@ -20,8 +20,11 @@ log_level = INFO
 
 
 [network]
-# Port range for incoming connections (format: start-end)
+# Interfaces/ports for incoming connections (set to VPN IP/interface to limit to VPN)
 listen_interfaces = 0.0.0.0:6881
+
+# Interfaces/IPs for outgoing TCP peers (set to VPN IP/interface to force traffic via VPN)
+outgoing_interfaces =
 
 # Enable Distributed Hash Table (DHT) for peer discovery
 dht_enabled = true
