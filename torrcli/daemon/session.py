@@ -1,3 +1,4 @@
+import asyncio
 import libtorrent as lt
 from pathlib import Path
 from torrcli.daemon.config import *
@@ -57,10 +58,10 @@ ses = create_session()
 torrent_handles = {}
 pending_resume_saves = {}
 
-def load_resume_and_torrents():
+async def load_resume_and_torrents():
     for fastresume_file in DATA_DIR.glob("*.fastresume"):
         info_hash = fastresume_file.stem
-        resume_data = fastresume_file.read_bytes()
+        resume_data = await asyncio.to_thread(fastresume_file.read_bytes)
         torrent_file = DATA_DIR / (info_hash + ".torrent")
 
         try:
@@ -97,14 +98,19 @@ def save_all_resume_data():
 def on_save_resume_data(alert):
     info_hash = str(alert.handle.info_hashes().get_best())
     file_path = DATA_DIR / f"{info_hash}.fastresume"
-    try:
-        data = lt.bencode(alert.resume_data)
-        file_path.write_bytes(data)
-        pending_resume_saves[info_hash] = True
-        print(f"Saved resume data for {info_hash}")
-    except Exception as e:
-        print(f"Failed to save resume data for {info_hash}: {e}")
-        pending_resume_saves[info_hash] = True
+    pending_resume_saves[info_hash] = False
+
+    async def persist():
+        try:
+            data = lt.bencode(alert.resume_data)
+            await asyncio.to_thread(file_path.write_bytes, data)
+            print(f"Saved resume data for {info_hash}")
+        except Exception as e:
+            print(f"Failed to save resume data for {info_hash}: {e}")
+        finally:
+            pending_resume_saves[info_hash] = True
+
+    asyncio.create_task(persist())
 
 def on_save_resume_failed(alert):
     info_hash = str(alert.handle.info_hashes().get_best())

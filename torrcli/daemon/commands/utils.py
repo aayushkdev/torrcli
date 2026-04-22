@@ -3,7 +3,7 @@ import math
 import libtorrent as lt
 
 async def send_response(writer, response):
-    writer.write(json.dumps(response).encode())
+    writer.write(json.dumps(response, separators=(",", ":")).encode() + b"\n")
     await writer.drain()
     writer.close()
     await writer.wait_closed()

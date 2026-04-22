@@ -1,3 +1,4 @@
+import asyncio
 from torrcli.daemon.commands.utils import send_response, send_error
 from torrcli.daemon.session import torrent_handles, ses
 from torrcli.daemon.config import DATA_DIR
@@ -10,8 +11,7 @@ async def remove_torrent(info_hash):
         fastresume_file = DATA_DIR / f"{info_hash}.fastresume"
         torrent_file = DATA_DIR / f"{info_hash}.torrent"
         for f in (fastresume_file, torrent_file):
-            if f.exists():
-                f.unlink()
+            await asyncio.to_thread(f.unlink, missing_ok=True)
 
         return True
     return False

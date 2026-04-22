@@ -15,7 +15,7 @@ async def info(index):
 async def list_torrents():
     response = await send_and_receive({"type": "list_torrents"})
 
-    torrents = response.get("data", [])
+    torrents = response.get("data", []) if response else []
 
     if not torrents:
         console.print("[bold yellow]No torrents added yet.[/bold yellow]")

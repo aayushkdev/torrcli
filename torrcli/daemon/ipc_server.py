@@ -4,9 +4,23 @@ from pathlib import Path
 from torrcli.daemon.alerts import alert_loop
 from torrcli.daemon.config import SOCKET_PATH
 from torrcli.daemon.commands import add, pause, resume, remove, list, progress
+from torrcli.daemon.commands.utils import send_error
 
 async def handle_request(reader, writer):
-    request = json.loads((await reader.read(4096)).decode())
+    try:
+        raw_request = await asyncio.wait_for(reader.readline(), timeout=30)
+        if not raw_request:
+            writer.close()
+            await writer.wait_closed()
+            return
+        request = json.loads(raw_request.decode())
+    except (asyncio.TimeoutError, UnicodeDecodeError, json.JSONDecodeError):
+        await send_error(writer, "Invalid request payload")
+        return
+    except Exception as exc:
+        await send_error(writer, f"Failed to read request: {exc}")
+        return
+
     req_type = request.get("type")
 
     handlers = {
@@ -22,9 +36,7 @@ async def handle_request(reader, writer):
     if handler:
         await handler(request, writer)
     else:
-        writer.write(b'{"status": "error", "message": "Unknown request type"}')
-        await writer.drain()
-        writer.close()
+        await send_error(writer, "Unknown request type")
 
 async def socket_server():
     Path(SOCKET_PATH).unlink(missing_ok=True)

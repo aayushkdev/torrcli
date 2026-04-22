@@ -4,7 +4,7 @@ from torrcli.client.ui import console
 
 async def resolve_info_hash(index):
     response = await send_and_receive({"type": "list_torrents"})
-    if not response["data"]:
+    if not response or not response.get("data"):
         console.print(f"[red]Invalid index: {index}[/red]")
         return
     torrents = response.get("data", [])

@@ -48,38 +48,45 @@ async def progress(source):
     state = init_data.get("state", "loading").capitalize()
     task_id = progress_bar.add_task(f"{state}...", total=100)
 
-    asyncio.create_task(handle_keys())
+    key_task = asyncio.create_task(handle_keys())
 
-    with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
-        while not exit_event.is_set():
-            response = await send_and_receive({
-                "type": "get_progress",
-                "source": source
-            })
+    try:
+        with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
+            while not exit_event.is_set():
+                response = await send_and_receive({
+                    "type": "get_progress",
+                    "source": source
+                })
 
-            if not response or response.get("status") != "success":
-                break
+                if not response or response.get("status") != "success":
+                    break
 
-            data = response["data"]
+                data = response["data"]
 
-            state = data["state"].capitalize()
-            progress_bar.update(task_id, completed=data["progress"])
-            progress_bar.update(task_id, description=f"{state}...")
+                state = data["state"].capitalize()
+                progress_bar.update(task_id, completed=data["progress"])
+                progress_bar.update(task_id, description=f"{state}...")
 
-            live.update(render_ui(
-                name=data.get("name", "Unknown Torrent"),
-                completed_bytes=data.get("downloaded", 0),
-                total_bytes=data.get("size", 1),
-                eta_sec=data.get("eta", 0),
-                progress=progress_bar,
-                download_speed=data.get("download_speed", 0),
-                upload_speed=data.get("upload_speed", 0),
-                seeders=data.get("seeders", 0),
-                leechers=data.get("leechers", 0),
-                connected_peers=data.get("connected_peers", 0),
-                total_peers=data.get("total_peers", 0),
-                status_text=state,
-            ))
+                live.update(render_ui(
+                    name=data.get("name", "Unknown Torrent"),
+                    completed_bytes=data.get("downloaded", 0),
+                    total_bytes=data.get("size", 1),
+                    eta_sec=data.get("eta", 0),
+                    progress=progress_bar,
+                    download_speed=data.get("download_speed", 0),
+                    upload_speed=data.get("upload_speed", 0),
+                    seeders=data.get("seeders", 0),
+                    leechers=data.get("leechers", 0),
+                    connected_peers=data.get("connected_peers", 0),
+                    total_peers=data.get("total_peers", 0),
+                    status_text=state,
+                ))
 
-            await asyncio.sleep(1)
-
+                await asyncio.sleep(0.5)
+    finally:
+        exit_event.set()
+        key_task.cancel()
+        try:
+            await key_task
+        except asyncio.CancelledError:
+            pass

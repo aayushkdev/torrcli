@@ -44,5 +44,5 @@ async def alert_loop():
                 return
 
         # Use shorter sleep when we have work, longer when idle
-        sleep_time = 0.1 if alerts else 1.0
+        sleep_time = 0.1 if alerts else 0.5
         await asyncio.sleep(sleep_time)

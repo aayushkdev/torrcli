@@ -2,7 +2,7 @@ import argparse
 import os
 import asyncio
 from torrcli.client.commands.download import download
-from torrcli. client.commands.listings import list_torrents, info
+from torrcli.client.commands.listings import list_torrents, info
 from torrcli.client.commands.manage import pause, resume, remove
 from torrcli.client.commands.search import search_and_download
 

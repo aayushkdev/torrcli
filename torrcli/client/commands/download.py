@@ -12,7 +12,7 @@ async def download(source, save_path, stream=False):
         "save_path": save_path,
         "stream": stream,
     })
-    if response["status"] == "success":
+    if response and response.get("status") == "success":
         metadata = response["data"]
         show_metadata(metadata)
 
@@ -30,4 +30,5 @@ async def download(source, save_path, stream=False):
                 "source": metadata["info_hash"],
             })
     else:
-        console.print(f"[red]{response["message"]}[/red]")
+        message = response.get("message", "Failed to add torrent.") if response else "Failed to add torrent."
+        console.print(f"[red]{message}[/red]")

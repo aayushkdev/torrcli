@@ -6,8 +6,8 @@ from torrcli.daemon.ipc_server import socket_server
 
 async def main_async():
     """Main async function that handles everything properly"""
-    # Load torrents synchronously first
-    load_resume_and_torrents()
+    # Load torrents before opening IPC so client requests see a consistent state.
+    await load_resume_and_torrents()
     
     def signal_handler():
         print("Shutdown signal received...")

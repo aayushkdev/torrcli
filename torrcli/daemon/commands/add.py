@@ -10,38 +10,45 @@ async def handle(request, writer):
         source = request.get("source")
         save_path = request.get("save_path") or str(DEFAULT_SAVE_PATH)
         stream = request.get("stream", False)
+        torrent_handle = None
         if source.startswith("magnet:"):
-            handle = ses.add_torrent({"url": source, "save_path": save_path})
-            while not handle.has_metadata():
-                await asyncio.sleep(1)
+            torrent_handle = ses.add_torrent({"url": source, "save_path": save_path})
+            while not torrent_handle.has_metadata():
+                await asyncio.sleep(0.1)
 
-            ti = handle.get_torrent_info()
+            ti = torrent_handle.get_torrent_info()
         else:
             ti = lt.torrent_info(source)
 
         info_hash = str(ti.info_hash())
-        torrent_handles[info_hash] = handle if source.startswith("magnet:") else ses.add_torrent({
-            "ti": ti,
-            "save_path": save_path,
-            **({"resume_data": lt.bdecode((DATA_DIR / f"{info_hash}.fastresume").read_bytes())}
-               if (DATA_DIR / f"{info_hash}.fastresume").exists() else {})
-        })
+        if source.startswith("magnet:"):
+            torrent_handles[info_hash] = torrent_handle
+        else:
+            resume_path = DATA_DIR / f"{info_hash}.fastresume"
+            add_args = {
+                "ti": ti,
+                "save_path": save_path,
+            }
+            if await asyncio.to_thread(resume_path.exists):
+                add_args["resume_data"] = lt.bdecode(await asyncio.to_thread(resume_path.read_bytes))
+            torrent_handles[info_hash] = ses.add_torrent(add_args)
 
-        handle = torrent_handles[info_hash]
-        handle.pause()
-        handle.auto_managed(False)
-        handle.save_resume_data()
+        torrent_handle = torrent_handles[info_hash]
+        torrent_handle.pause()
+        torrent_handle.auto_managed(False)
+        torrent_handle.save_resume_data()
 
         if stream:
-            handle.set_sequential_download(True)
+            torrent_handle.set_sequential_download(True)
 
         torrent_path = DATA_DIR / f"{info_hash}.torrent"
         if not torrent_path.exists():
             if source.startswith("magnet:"):
                 t = lt.create_torrent(ti)
-                torrent_path.write_bytes(lt.bencode(t.generate()))
+                await asyncio.to_thread(torrent_path.write_bytes, lt.bencode(t.generate()))
             else:
-                Path(source).replace(torrent_path)
+                source_path = Path(source)
+                await asyncio.to_thread(torrent_path.write_bytes, source_path.read_bytes())
 
         files = ti.files()
         file_list = [{"path": files.file_path(i), "size": files.file_size(i)} for i in range(min(files.num_files(), 10))]
