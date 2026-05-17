@@ -6,6 +6,15 @@ from torrcli.daemon.config import SOCKET_PATH
 from torrcli.daemon.commands import add, pause, resume, remove, list, progress
 from torrcli.daemon.commands.utils import send_error
 
+_HANDLERS = {
+    "add_torrent": add.handle,
+    "pause_download": pause.handle,
+    "start_download": resume.handle,
+    "remove_download": remove.handle,
+    "list_torrents": list.handle,
+    "get_progress": progress.handle,
+}
+
 async def handle_request(reader, writer):
     try:
         raw_request = await asyncio.wait_for(reader.readline(), timeout=30)
@@ -21,20 +30,14 @@ async def handle_request(reader, writer):
         await send_error(writer, f"Failed to read request: {exc}")
         return
 
-    req_type = request.get("type")
-
-    handlers = {
-        "add_torrent": add.handle,
-        "pause_download": pause.handle,
-        "start_download": resume.handle,
-        "remove_download": remove.handle,
-        "list_torrents": list.handle,
-        "get_progress": progress.handle,
-    }
-
-    handler = handlers.get(req_type)
+    handler = _HANDLERS.get(request.get("type"))
     if handler:
-        await handler(request, writer)
+        try:
+            await handler(request, writer)
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            await send_error(writer, f"Handler error: {exc}")
     else:
         await send_error(writer, "Unknown request type")
 

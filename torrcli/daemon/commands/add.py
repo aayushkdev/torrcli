@@ -1,16 +1,17 @@
 import asyncio
 import libtorrent as lt
 from pathlib import Path
-from torrcli.daemon.config import DATA_DIR, DEFAULT_SAVE_PATH
+from torrcli.daemon.config import DATA_DIR, DEFAULT_SAVE_PATH, AUTO_START
 from torrcli.daemon.session import ses, torrent_handles
 from torrcli.daemon.commands.utils import send_success, send_error
 
 async def handle(request, writer):
+    source = request.get("source")
+    save_path = request.get("save_path") or str(DEFAULT_SAVE_PATH)
+    stream = request.get("stream", False)
+    torrent_handle = None
+
     try:
-        source = request.get("source")
-        save_path = request.get("save_path") or str(DEFAULT_SAVE_PATH)
-        stream = request.get("stream", False)
-        torrent_handle = None
         if source.startswith("magnet:"):
             torrent_handle = ses.add_torrent({"url": source, "save_path": save_path})
             while not torrent_handle.has_metadata():
@@ -20,7 +21,7 @@ async def handle(request, writer):
         else:
             ti = lt.torrent_info(source)
 
-        info_hash = str(ti.info_hash())
+        info_hash = str(ti.info_hashes().get_best())
         if source.startswith("magnet:"):
             torrent_handles[info_hash] = torrent_handle
         else:
@@ -34,8 +35,9 @@ async def handle(request, writer):
             torrent_handles[info_hash] = ses.add_torrent(add_args)
 
         torrent_handle = torrent_handles[info_hash]
-        torrent_handle.pause()
-        torrent_handle.auto_managed(False)
+        if not AUTO_START:
+            torrent_handle.pause()
+            torrent_handle.auto_managed(False)
         torrent_handle.save_resume_data()
 
         if stream:

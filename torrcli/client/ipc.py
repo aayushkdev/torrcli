@@ -1,9 +1,14 @@
 import os
 import json
 import asyncio
+import configparser
+from pathlib import Path
 from torrcli.client.ui import console
 
-SOCKET_PATH = "/tmp/torrcli_daemon.sock"
+_conf_path = Path.home() / ".config" / "torrcli" / "torrcli.conf"
+_conf = configparser.ConfigParser()
+_conf.read(str(_conf_path))
+SOCKET_PATH = _conf.get("general", "socket_path", fallback="/tmp/torrcli_daemon.sock")
 
 async def send_command(data):
     if not os.path.exists(SOCKET_PATH):
@@ -15,7 +20,7 @@ async def send_command(data):
     await writer.drain()
     return reader, writer
 
-async def send_and_receive(data):
+async def send_and_receive(data, timeout=30):
     try:
         reader, writer = await send_command(data)
     except OSError as exc:
@@ -26,13 +31,22 @@ async def send_and_receive(data):
         return None
 
     try:
-        raw = await asyncio.wait_for(reader.readline(), timeout=30)
+        if timeout is not None:
+            raw = await asyncio.wait_for(reader.readline(), timeout=timeout)
+        else:
+            raw = await reader.readline()
     except asyncio.TimeoutError:
         console.print("[red]Timed out waiting for daemon response.[/red]")
         return None
+    except Exception as exc:
+        console.print(f"[red]Connection error reading response: {exc}[/red]")
+        return None
     finally:
-        writer.close()
-        await writer.wait_closed()
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
 
     try:
         return json.loads(raw.decode())

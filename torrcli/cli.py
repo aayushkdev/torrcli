@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import asyncio
 from torrcli.client.commands.download import download
 from torrcli.client.commands.listings import list_torrents, info
@@ -15,6 +16,8 @@ def is_torrent_file(path: str) -> bool:
 async def main():
     parser = argparse.ArgumentParser(description="Torrent CLI Downloader")
     subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("daemon", help="Start the daemon process")
 
     download_parser = subparsers.add_parser("add", help="Download a torrent")
     download_parser.add_argument("source", help="Magnet link or .torrent file")
@@ -41,7 +44,6 @@ async def main():
     search_parser.add_argument("-t", "--stream", action="store_true", help="Enable stream mode (sequential download)")
 
     args = parser.parse_args()
-
 
     if args.command == "ls":
         await list_torrents()
@@ -71,10 +73,16 @@ async def main():
         parser.print_help()
 
 def run():
+    if len(sys.argv) > 1 and sys.argv[1] == "daemon":
+        from torrcli.daemon.daemon import main as daemon_main
+        daemon_main()
+        return
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print()
+    except SystemExit:
+        raise
 
 if __name__ == "__main__":
     run()

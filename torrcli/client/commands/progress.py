@@ -8,23 +8,23 @@ from torrcli.client.utils import setup_nonblocking_input, restore_input_mode, ge
 async def progress(source):
     console.print("[dim]Press [bold]p[/bold] to pause, [bold]r[/bold] to resume, [bold]e[/bold] to exit[/dim]\n")
 
-    state_event = asyncio.Event()
     exit_event = asyncio.Event()
 
     async def handle_keys():
         setup_nonblocking_input()
         try:
             while not exit_event.is_set():
-                key = get_pressed_key()
-                if key:
-                    if key == "p":
-                        await send_and_receive({"type": "pause_download", "source": source})
-                        state_event.set()
-                    elif key == "r":
-                        await send_and_receive({"type": "start_download", "source": source})
-                        state_event.set()
-                    elif key == "e":
-                        exit_event.set()
+                try:
+                    key = get_pressed_key()
+                    if key:
+                        if key == "p":
+                            await send_and_receive({"type": "pause_download", "source": source})
+                        elif key == "r":
+                            await send_and_receive({"type": "start_download", "source": source})
+                        elif key == "e":
+                            exit_event.set()
+                except Exception:
+                    pass
                 await asyncio.sleep(0.1)
         finally:
             restore_input_mode()
@@ -53,10 +53,13 @@ async def progress(source):
     try:
         with Live(render_ui("Loading...", 0, 1, 0, progress_bar, 0, 0, 0, 0, 0, 0, state), refresh_per_second=4, console=console) as live:
             while not exit_event.is_set():
-                response = await send_and_receive({
-                    "type": "get_progress",
-                    "source": source
-                })
+                try:
+                    response = await send_and_receive({
+                        "type": "get_progress",
+                        "source": source
+                    })
+                except Exception:
+                    break
 
                 if not response or response.get("status") != "success":
                     break
@@ -88,5 +91,5 @@ async def progress(source):
         key_task.cancel()
         try:
             await key_task
-        except asyncio.CancelledError:
+        except Exception:
             pass

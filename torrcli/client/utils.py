@@ -3,6 +3,9 @@ import tty
 import termios
 import selectors
 
+_orig_termios = None
+_selector = None
+
 def format_size(size_in_bytes):
     for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_in_bytes < 1024:
@@ -10,12 +13,12 @@ def format_size(size_in_bytes):
         size_in_bytes /= 1024
     return f"{size_in_bytes:.2f} PB"
 
-def format_speed(speed_kbps):
-    return format_size(speed_kbps) + "/s"
+def format_speed(speed_bps):
+    return format_size(speed_bps) + "/s"
 
 def format_time(seconds):
     if seconds < 0:
-        return "∞ sec"
+        return "\u221e sec"
     seconds = int(seconds)
     if seconds < 60:
         return f"{seconds} sec"
@@ -33,19 +36,44 @@ def format_time(seconds):
         return f"{days} d {hours} hr {mins} min"
 
 def setup_nonblocking_input():
+    global _orig_termios, _selector
+    if not sys.stdin.isatty():
+        return
+    if _selector is not None:
+        try:
+            _selector.close()
+        except Exception:
+            pass
+    if _orig_termios is not None:
+        _orig_termios = None
     fd = sys.stdin.fileno()
-    tty.setcbreak(fd) 
+    _orig_termios = termios.tcgetattr(fd)
+    tty.setcbreak(fd)
     import os
     os.set_blocking(fd, False)
+    _selector = selectors.DefaultSelector()
+    _selector.register(sys.stdin, selectors.EVENT_READ)
 
 def restore_input_mode():
-    fd = sys.stdin.fileno()
-    termios.tcsetattr(fd, termios.TCSADRAIN, termios.tcgetattr(fd))
+    global _orig_termios, _selector
+    if _orig_termios is not None:
+        try:
+            fd = sys.stdin.fileno()
+            termios.tcsetattr(fd, termios.TCSADRAIN, _orig_termios)
+        except Exception:
+            pass
+        _orig_termios = None
+    if _selector is not None:
+        try:
+            _selector.close()
+        except Exception:
+            pass
+        _selector = None
 
 def get_pressed_key():
-    sel = selectors.DefaultSelector()
-    sel.register(sys.stdin, selectors.EVENT_READ)
-    events = sel.select(timeout=0)
+    if _selector is None:
+        return None
+    events = _selector.select(timeout=0)
     if events:
         return sys.stdin.read(1)
     return None

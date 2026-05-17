@@ -9,7 +9,7 @@ async def handle(request, writer):
             "index": i + 1,
             "name": status.name,
             "progress": round(status.progress * 100, 2),
-            "state": get_torrent_state(handle),
+            "state": get_torrent_state(handle, status),
             "downloaded": status.total_done,
             "size": max(status.total_wanted, 1),
             "eta": calc_eta(status),

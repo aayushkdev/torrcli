@@ -1,3 +1,4 @@
+import os
 import configparser
 from pathlib import Path
 import shutil
@@ -42,6 +43,8 @@ DEFAULTS = {
     "session": {
         "auto_start": True,
         "save_resume_data_interval": 300,
+        "remove_after_download": False,
+        "seed_after_download": True,
     },
     "security": {
         "anonymous_mode": False,
@@ -98,6 +101,12 @@ DATA_DIR = Path(get("data_dir")).expanduser()
 DEFAULT_SAVE_PATH = Path(get("default_save_path")).expanduser()
 LOG_LEVEL = get("log_level")
 
+DHT_ROUTERS = [
+    ("router.bittorrent.com", 6881),
+    ("router.utorrent.com", 6881),
+    ("dht.transmissionbt.com", 6881),
+]
+
 LISTEN_INTERFACES = get("listen_interfaces", "network")
 OUTGOING_INTERFACES = get("outgoing_interfaces", "network")
 DHT_ENABLED = get("dht_enabled", "network", cast=bool)
@@ -140,3 +149,23 @@ PROXY_TRACKER_CONNECTIONS = get("proxy_tracker_connections", "proxy", cast=bool)
 FORCE_PROXY = get("force_proxy", "proxy", cast=bool)
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+def write_pid():
+    pid = str(os.getpid())
+    Path(PID_FILE).write_text(pid)
+
+def remove_pid():
+    Path(PID_FILE).unlink(missing_ok=True)
+
+def check_pid():
+    pid_file = Path(PID_FILE)
+    if pid_file.exists():
+        try:
+            old_pid = int(pid_file.read_text().strip())
+            import errno
+            os.kill(old_pid, 0)
+            print(f"Daemon already running with PID {old_pid}")
+            return True
+        except (ProcessLookupError, ValueError, OSError):
+            pid_file.unlink(missing_ok=True)
+    return False

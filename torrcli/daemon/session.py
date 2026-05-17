@@ -46,6 +46,11 @@ def create_session():
 
     ses.apply_settings(settings)
 
+    if DHT_ENABLED:
+        ses.start_dht()
+        for router in DHT_ROUTERS:
+            ses.add_dht_router(*router)
+
     if MAX_DOWNLOAD_SPEED > 0:
         ses.set_download_rate_limit(MAX_DOWNLOAD_SPEED)
     if MAX_UPLOAD_SPEED > 0:
@@ -100,6 +105,8 @@ def on_save_resume_data(alert):
     file_path = DATA_DIR / f"{info_hash}.fastresume"
     pending_resume_saves[info_hash] = False
 
+    save_round = id(pending_resume_saves)
+
     async def persist():
         try:
             data = lt.bencode(alert.resume_data)
@@ -108,7 +115,8 @@ def on_save_resume_data(alert):
         except Exception as e:
             print(f"Failed to save resume data for {info_hash}: {e}")
         finally:
-            pending_resume_saves[info_hash] = True
+            if id(pending_resume_saves) == save_round:
+                pending_resume_saves[info_hash] = True
 
     asyncio.create_task(persist())
 

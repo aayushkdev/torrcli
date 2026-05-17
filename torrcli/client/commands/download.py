@@ -11,7 +11,7 @@ async def download(source, save_path, stream=False):
         "source": source,
         "save_path": save_path,
         "stream": stream,
-    })
+    }, timeout=None)
     if response and response.get("status") == "success":
         metadata = response["data"]
         show_metadata(metadata)

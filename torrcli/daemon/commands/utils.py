@@ -23,11 +23,12 @@ def calc_eta(status):
         remaining = status.total_wanted - status.total_done
         return math.ceil(remaining / rate)
 
-def get_torrent_state(handle):
+def get_torrent_state(handle, status=None):
     if handle.is_paused():
         return "paused"
 
-    status = handle.status()
+    if status is None:
+        status = handle.status()
 
     state_map = {
         lt.torrent_status.queued_for_checking: "queued for checking",
