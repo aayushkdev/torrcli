@@ -1,4 +1,3 @@
-// Package daemon contains the long-running torrd service.
 package daemon
 
 import (
@@ -19,7 +18,6 @@ import (
 
 const Version = "0.1.0-dev"
 
-// Daemon owns the persistent state and local RPC service.
 type Daemon struct {
 	paths   platform.Paths
 	started time.Time
@@ -27,12 +25,10 @@ type Daemon struct {
 	session model.Session
 }
 
-// New creates a daemon that uses paths for its local state and endpoint.
 func New(paths platform.Paths) *Daemon {
 	return &Daemon{paths: paths}
 }
 
-// Run starts the local socket service and blocks until ctx is canceled.
 func (d *Daemon) Run(ctx context.Context) error {
 	if err := d.loadState(); err != nil {
 		return err

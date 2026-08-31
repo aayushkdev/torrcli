@@ -1,4 +1,3 @@
-// Package client provides a typed client for the local torrd RPC API.
 package client
 
 import (
@@ -11,17 +10,14 @@ import (
 	"github.com/aayush/torrcli/internal/rpc"
 )
 
-// Client communicates with one local torrd endpoint.
 type Client struct {
 	socketPath string
 }
 
-// New returns a client for socketPath.
 func New(socketPath string) *Client {
 	return &Client{socketPath: socketPath}
 }
 
-// Ping confirms that torrd is ready to handle requests.
 func (c *Client) Ping(ctx context.Context) (rpc.PingResult, error) {
 	var result rpc.PingResult
 	if err := c.call(ctx, rpc.MethodDaemonPing, &result); err != nil {
@@ -30,7 +26,6 @@ func (c *Client) Ping(ctx context.Context) (rpc.PingResult, error) {
 	return result, nil
 }
 
-// Info returns the current daemon metadata.
 func (c *Client) Info(ctx context.Context) (rpc.DaemonInfo, error) {
 	var result rpc.DaemonInfo
 	if err := c.call(ctx, rpc.MethodDaemonInfo, &result); err != nil {

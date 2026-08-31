@@ -1,4 +1,3 @@
-// Package state manages file-based configuration and session persistence.
 package state
 
 import (
@@ -12,7 +11,6 @@ import (
 	"github.com/aayush/torrcli/internal/model"
 )
 
-// LoadOrCreateConfig loads configPath or writes defaults when it is absent.
 func LoadOrCreateConfig(configPath, downloadDirectory string) (model.Config, error) {
 	var config model.Config
 	err := readJSON(configPath, &config)
@@ -32,7 +30,6 @@ func LoadOrCreateConfig(configPath, downloadDirectory string) (model.Config, err
 	return config, nil
 }
 
-// SaveConfig atomically persists config.
 func SaveConfig(configPath string, config model.Config) error {
 	if err := validateConfig(config); err != nil {
 		return err
@@ -43,7 +40,6 @@ func SaveConfig(configPath string, config model.Config) error {
 	return nil
 }
 
-// LoadOrCreateSession loads sessionPath or writes an empty session when absent.
 func LoadOrCreateSession(sessionPath string) (model.Session, error) {
 	var session model.Session
 	err := readJSON(sessionPath, &session)
@@ -63,7 +59,6 @@ func LoadOrCreateSession(sessionPath string) (model.Session, error) {
 	return session, nil
 }
 
-// SaveSession atomically persists session.
 func SaveSession(sessionPath string, session model.Session) error {
 	if err := validateSession(session); err != nil {
 		return err

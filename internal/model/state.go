@@ -1,11 +1,9 @@
-// Package model contains data shared by the daemon and its clients.
 package model
 
 import "time"
 
 const StateVersion = 1
 
-// Config contains user-controlled daemon preferences.
 type Config struct {
 	Version            int    `json:"version"`
 	DownloadDirectory  string `json:"download_directory"`
@@ -16,7 +14,6 @@ type Config struct {
 	ListenPort         int    `json:"listen_port"`
 }
 
-// DefaultConfig returns the initial user configuration.
 func DefaultConfig(downloadDirectory string) Config {
 	return Config{
 		Version:            StateVersion,
@@ -26,14 +23,12 @@ func DefaultConfig(downloadDirectory string) Config {
 	}
 }
 
-// Session contains the daemon's durable torrent collection.
 type Session struct {
 	Version  int                      `json:"version"`
 	Order    []string                 `json:"order"`
 	Torrents map[string]TorrentRecord `json:"torrents"`
 }
 
-// TorrentRecord is the persistent application metadata for one torrent.
 type TorrentRecord struct {
 	Source         string            `json:"source"`
 	Name           string            `json:"name"`
@@ -43,7 +38,6 @@ type TorrentRecord struct {
 	FilePriorities map[string]string `json:"file_priorities,omitempty"`
 }
 
-// DefaultSession returns an empty torrent collection.
 func DefaultSession() Session {
 	return Session{
 		Version:  StateVersion,

@@ -11,10 +11,8 @@ import (
 
 const maxMessageSize = 1 << 20
 
-// Handler handles one validated JSON-RPC request.
 type Handler func(context.Context, Request) (any, *Error)
 
-// ServeConn serves newline-delimited JSON-RPC requests on one connection.
 func ServeConn(ctx context.Context, connection io.ReadWriteCloser, handler Handler) error {
 	defer connection.Close()
 
@@ -72,12 +70,10 @@ func writeResponse(writer *bufio.Writer, response Response) error {
 	return writer.Flush()
 }
 
-// MethodNotFound returns the standard error for unsupported methods.
 func MethodNotFound(method string) *Error {
 	return &Error{Code: CodeMethodNotFound, Message: "method not found: " + method}
 }
 
-// InternalError converts an unexpected error into a safe protocol error.
 func InternalError(err error) *Error {
 	if errors.Is(err, context.Canceled) {
 		return &Error{Code: CodeInternalError, Message: "request canceled"}

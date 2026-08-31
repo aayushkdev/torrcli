@@ -1,10 +1,13 @@
-// Command torrcli is the terminal UI and command-line client for torrd.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"net"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/aayush/torrcli/internal/client"
@@ -26,6 +29,10 @@ func main() {
 
 	daemon := client.New(paths.SocketPath)
 	if _, err := daemon.Ping(ctx); err != nil {
+		if daemonUnavailable(err) {
+			fmt.Fprintln(os.Stderr, "torrcli: torrd is unavailable.")
+			os.Exit(1)
+		}
 		fatal(err)
 	}
 	info, err := daemon.Info(ctx)
@@ -42,4 +49,9 @@ func main() {
 func fatal(err error) {
 	fmt.Fprintln(os.Stderr, "torrcli:", err)
 	os.Exit(1)
+}
+
+func daemonUnavailable(err error) bool {
+	var networkError *net.OpError
+	return errors.As(err, &networkError) || errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ECONNREFUSED)
 }

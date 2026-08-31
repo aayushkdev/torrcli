@@ -1,4 +1,3 @@
-// Package platform provides operating-system integration helpers.
 package platform
 
 import (
@@ -8,7 +7,6 @@ import (
 	"runtime"
 )
 
-// Paths identifies all application-owned directories and files.
 type Paths struct {
 	ConfigDir   string
 	StateDir    string
@@ -19,7 +17,6 @@ type Paths struct {
 	LockFile    string
 }
 
-// DefaultPaths returns platform-appropriate locations for torrcli data.
 func DefaultPaths() (Paths, error) {
 	configRoot, err := os.UserConfigDir()
 	if err != nil {
@@ -38,7 +35,6 @@ func DefaultPaths() (Paths, error) {
 	return newPaths(configDir, stateDir, runtimeDir), nil
 }
 
-// WithOverrides returns paths with non-empty directory overrides applied.
 func (p Paths) WithOverrides(configDir, stateDir, runtimeDir string) Paths {
 	if configDir != "" {
 		p.ConfigDir = configDir
