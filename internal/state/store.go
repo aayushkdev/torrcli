@@ -51,6 +51,12 @@ func LoadOrCreateSession(sessionPath string) (model.Session, error) {
 		return session, nil
 	}
 	if err != nil {
+		backupErr := readJSON(sessionPath+".bak", &session)
+		if backupErr == nil {
+			if validateErr := validateSession(session); validateErr == nil {
+				return session, nil
+			}
+		}
 		return model.Session{}, fmt.Errorf("read session: %w", err)
 	}
 	if err := validateSession(session); err != nil {

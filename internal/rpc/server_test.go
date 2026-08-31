@@ -55,3 +55,32 @@ func TestServeConnPing(t *testing.T) {
 		t.Fatalf("serve connection: %v", err)
 	}
 }
+
+func TestServeConnUnknownMethod(t *testing.T) {
+	t.Parallel()
+
+	serverConnection, clientConnection := net.Pipe()
+	defer clientConnection.Close()
+	serverDone := make(chan error, 1)
+	go func() {
+		serverDone <- rpc.ServeConn(context.Background(), serverConnection, func(_ context.Context, request rpc.Request) (any, *rpc.Error) {
+			return nil, rpc.MethodNotFound(request.Method)
+		})
+	}()
+
+	if _, err := clientConnection.Write([]byte(`{"jsonrpc":"2.0","id":1,"method":"unknown"}` + "\n")); err != nil {
+		t.Fatalf("write request: %v", err)
+	}
+	var response rpc.Response
+	if err := json.NewDecoder(bufio.NewReader(clientConnection)).Decode(&response); err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	if response.Error == nil || response.Error.Code != rpc.CodeMethodNotFound {
+		t.Fatalf("response error = %#v, want method-not-found", response.Error)
+	}
+
+	clientConnection.Close()
+	if err := <-serverDone; err != nil {
+		t.Fatalf("serve connection: %v", err)
+	}
+}

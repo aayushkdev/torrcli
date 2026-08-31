@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,5 +42,32 @@ func TestLoadOrCreateConfigAndSession(t *testing.T) {
 	}
 	if session.Version != model.StateVersion || len(session.Order) != 0 || len(session.Torrents) != 0 {
 		t.Fatalf("unexpected default session: %#v", session)
+	}
+}
+
+func TestLoadSessionRecoversFromBackup(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "session.json")
+	if _, err := state.LoadOrCreateSession(path); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	session := model.DefaultSession()
+	session.Order = []string{"torrent-a"}
+	session.Torrents["torrent-a"] = model.TorrentRecord{DesiredState: "paused"}
+	if err := state.SaveSession(path, session); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("not json"), 0o600); err != nil {
+		t.Fatalf("corrupt session: %v", err)
+	}
+
+	recovered, err := state.LoadOrCreateSession(path)
+	if err != nil {
+		t.Fatalf("recover session: %v", err)
+	}
+	if len(recovered.Order) != 0 {
+		t.Fatalf("recovered order = %#v, want backup session", recovered.Order)
 	}
 }
