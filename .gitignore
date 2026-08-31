@@ -1,0 +1,9 @@
+ARCHITECTURE.md
+
+# Locally built binaries and test output.
+/torrcli
+/torrd
+coverage.out
+
+# OS/editor files.
+.DS_Store
