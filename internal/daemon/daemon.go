@@ -146,13 +146,13 @@ func (d *Daemon) handleRPC(_ context.Context, request rpc.Request) (any, *rpc.Er
 	case rpc.MethodDaemonPing:
 		return rpc.PingResult{ProtocolVersion: rpc.Version}, nil
 	case rpc.MethodDaemonInfo:
-		return map[string]any{
-			"daemon_version":   Version,
-			"protocol_version": rpc.Version,
-			"started_at":       d.started,
-			"config_file":      d.paths.ConfigFile,
-			"session_file":     d.paths.SessionFile,
-			"socket_path":      d.paths.SocketPath,
+		return rpc.DaemonInfo{
+			DaemonVersion:   Version,
+			ProtocolVersion: rpc.Version,
+			StartedAt:       d.started,
+			ConfigFile:      d.paths.ConfigFile,
+			SessionFile:     d.paths.SessionFile,
+			SocketPath:      d.paths.SocketPath,
 		}, nil
 	default:
 		return nil, rpc.MethodNotFound(request.Method)

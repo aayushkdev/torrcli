@@ -1,7 +1,10 @@
 // Package rpc implements the local newline-delimited JSON-RPC protocol.
 package rpc
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 const Version = "2.0"
 
@@ -42,4 +45,14 @@ const (
 // PingResult confirms that a daemon is ready to accept requests.
 type PingResult struct {
 	ProtocolVersion string `json:"protocol_version"`
+}
+
+// DaemonInfo describes a running daemon instance.
+type DaemonInfo struct {
+	DaemonVersion   string    `json:"daemon_version"`
+	ProtocolVersion string    `json:"protocol_version"`
+	StartedAt       time.Time `json:"started_at"`
+	ConfigFile      string    `json:"config_file"`
+	SessionFile     string    `json:"session_file"`
+	SocketPath      string    `json:"socket_path"`
 }
