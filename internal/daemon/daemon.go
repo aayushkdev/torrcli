@@ -14,6 +14,7 @@ import (
 	"github.com/aayush/torrcli/internal/platform"
 	"github.com/aayush/torrcli/internal/rpc"
 	"github.com/aayush/torrcli/internal/state"
+	"github.com/aayush/torrcli/internal/transport"
 )
 
 const Version = "0.1.0-dev"
@@ -40,13 +41,13 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	defer lock.Close()
 
-	listener, err := d.listen()
+	listener, err := transport.Listen(d.paths.SocketPath)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		_ = listener.Close()
-		_ = os.Remove(d.paths.SocketPath)
+		_ = transport.RemoveEndpoint(d.paths.SocketPath)
 	}()
 
 	d.started = time.Now().UTC()
@@ -116,25 +117,6 @@ func (d *Daemon) loadState() error {
 		return err
 	}
 	return nil
-}
-
-func (d *Daemon) listen() (*net.UnixListener, error) {
-	if err := os.MkdirAll(d.paths.RuntimeDir, 0o700); err != nil {
-		return nil, fmt.Errorf("create runtime directory: %w", err)
-	}
-	if err := os.Remove(d.paths.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("remove stale socket: %w", err)
-	}
-
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: d.paths.SocketPath, Net: "unix"})
-	if err != nil {
-		return nil, fmt.Errorf("listen on daemon socket: %w", err)
-	}
-	if err := os.Chmod(d.paths.SocketPath, 0o600); err != nil {
-		listener.Close()
-		return nil, fmt.Errorf("secure daemon socket: %w", err)
-	}
-	return listener, nil
 }
 
 func (d *Daemon) handleRPC(_ context.Context, request rpc.Request) (any, *rpc.Error) {

@@ -140,9 +140,6 @@ func writeJSON(path string, value any) error {
 }
 
 func validateConfig(config model.Config) error {
-	if config.Version != model.StateVersion {
-		return fmt.Errorf("unsupported config version %d", config.Version)
-	}
 	if config.DownloadDirectory == "" {
 		return errors.New("download directory is required")
 	}
@@ -159,9 +156,6 @@ func validateConfig(config model.Config) error {
 }
 
 func validateSession(session model.Session) error {
-	if session.Version != model.StateVersion {
-		return fmt.Errorf("unsupported session version %d", session.Version)
-	}
 	if session.Order == nil {
 		return errors.New("session order is required")
 	}

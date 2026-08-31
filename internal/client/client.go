@@ -5,9 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
-
 	"github.com/aayush/torrcli/internal/rpc"
+	"github.com/aayush/torrcli/internal/transport"
 )
 
 type Client struct {
@@ -35,7 +34,7 @@ func (c *Client) Info(ctx context.Context) (rpc.DaemonInfo, error) {
 }
 
 func (c *Client) call(ctx context.Context, method string, result any) error {
-	connection, err := (&net.Dialer{}).DialContext(ctx, "unix", c.socketPath)
+	connection, err := transport.DialContext(ctx, c.socketPath)
 	if err != nil {
 		return fmt.Errorf("connect to torrd: %w", err)
 	}

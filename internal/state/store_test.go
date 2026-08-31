@@ -40,7 +40,7 @@ func TestLoadOrCreateConfigAndSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load session: %v", err)
 	}
-	if session.Version != model.StateVersion || len(session.Order) != 0 || len(session.Torrents) != 0 {
+	if len(session.Order) != 0 || len(session.Torrents) != 0 {
 		t.Fatalf("unexpected default session: %#v", session)
 	}
 }

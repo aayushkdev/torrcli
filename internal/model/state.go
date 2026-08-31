@@ -2,10 +2,7 @@ package model
 
 import "time"
 
-const StateVersion = 1
-
 type Config struct {
-	Version            int    `json:"version"`
 	DownloadDirectory  string `json:"download_directory"`
 	MaxActiveDownloads int    `json:"max_active_downloads"`
 	MaxActiveSeeds     int    `json:"max_active_seeds"`
@@ -16,7 +13,6 @@ type Config struct {
 
 func DefaultConfig(downloadDirectory string) Config {
 	return Config{
-		Version:            StateVersion,
 		DownloadDirectory:  downloadDirectory,
 		MaxActiveDownloads: 3,
 		MaxActiveSeeds:     5,
@@ -24,7 +20,6 @@ func DefaultConfig(downloadDirectory string) Config {
 }
 
 type Session struct {
-	Version  int                      `json:"version"`
 	Order    []string                 `json:"order"`
 	Torrents map[string]TorrentRecord `json:"torrents"`
 }
@@ -40,7 +35,6 @@ type TorrentRecord struct {
 
 func DefaultSession() Session {
 	return Session{
-		Version:  StateVersion,
 		Order:    []string{},
 		Torrents: map[string]TorrentRecord{},
 	}
