@@ -18,8 +18,73 @@ type daemonClient interface {
 	Pause(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	Remove(context.Context, rpc.RemoveTorrentParams) error
 	Resume(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
+	Verify(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
+	FindPeers(context.Context, rpc.TorrentParams) error
 	SetFilePriority(context.Context, rpc.SetFilePriorityParams) (rpc.TorrentResult, error)
 	Move(context.Context, rpc.MoveTorrentParams) (rpc.ListTorrentsResult, error)
+}
+
+type torrentAction string
+
+const (
+	actionToggle    torrentAction = "toggle"
+	actionVerify    torrentAction = "verify"
+	actionFindPeers torrentAction = "find peers"
+	actionRemove    torrentAction = "remove"
+)
+
+func (m model) torrentActions() []torrentAction {
+	if index := m.selectedIndex(); index >= 0 && m.torrents[index].State == domain.TorrentStatePaused {
+		return []torrentAction{actionToggle, actionVerify, actionFindPeers, actionRemove}
+	}
+	return []torrentAction{actionToggle, actionVerify, actionFindPeers, actionRemove}
+}
+
+func (m model) actionLabel(action torrentAction) string {
+	if action == actionToggle {
+		if index := m.selectedIndex(); index >= 0 && m.torrents[index].State == domain.TorrentStatePaused {
+			return "Resume"
+		}
+		return "Pause"
+	}
+	switch action {
+	case actionVerify:
+		return "Force recheck"
+	case actionFindPeers:
+		return "Find peers now"
+	default:
+		return "Remove torrent"
+	}
+}
+
+func (m *model) verifySelected() tea.Cmd {
+	if m.pending || m.selectedID == "" {
+		return nil
+	}
+	m.pending = true
+	m.notice = "Checking torrent data…"
+	m.noticeErr = false
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 10*time.Minute)
+		defer cancel()
+		result, err := m.daemon.Verify(ctx, rpc.TorrentParams{ID: m.selectedID})
+		return actionResultMsg{torrent: result.Torrent, action: "verify", err: err}
+	}
+}
+
+func (m *model) findPeersSelected() tea.Cmd {
+	if m.pending || m.selectedID == "" {
+		return nil
+	}
+	m.pending = true
+	m.notice = "Looking for peers…"
+	m.noticeErr = false
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
+		defer cancel()
+		err := m.daemon.FindPeers(ctx, rpc.TorrentParams{ID: m.selectedID})
+		return actionResultMsg{action: "find peers", err: err}
+	}
 }
 
 func (m *model) moveSelected(offset int) tea.Cmd {
@@ -115,6 +180,24 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.input = ""
 	case tea.KeyEnter:
 		switch m.dialog {
+		case dialogActions:
+			actions := m.torrentActions()
+			if len(actions) == 0 {
+				return m, nil
+			}
+			action := actions[m.actionIndex]
+			m.dialog = dialogNone
+			switch action {
+			case actionToggle:
+				return m, m.toggleSelected()
+			case actionVerify:
+				return m, m.verifySelected()
+			case actionFindPeers:
+				return m, m.findPeersSelected()
+			case actionRemove:
+				m.dialog = dialogRemove
+			}
+			return m, nil
 		case dialogAdd:
 			source := strings.TrimSpace(m.input)
 			if source == "" {
@@ -141,6 +224,14 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeySpace:
 		if m.dialog == dialogAdd {
 			m.input += " "
+		}
+	}
+	if m.dialog == dialogActions {
+		switch key.String() {
+		case "up", "k":
+			m.actionIndex = max(0, m.actionIndex-1)
+		case "down", "j":
+			m.actionIndex = min(len(m.torrentActions())-1, m.actionIndex+1)
 		}
 	}
 	return m, nil
@@ -184,6 +275,11 @@ func (m *model) handleActionResult(message actionResultMsg) tea.Cmd {
 	case "pause", "resume":
 		m.replaceTorrent(message.torrent)
 		return m.setNotice(strings.ToUpper(message.action[:1])+message.action[1:], false)
+	case "verify":
+		m.replaceTorrent(message.torrent)
+		return m.setNotice("Verification complete", false)
+	case "find peers":
+		return m.setNotice("Searching DHT for peers", false)
 	case "add":
 		m.upsertTorrent(message.torrent)
 		m.ensureSelection()

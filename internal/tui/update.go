@@ -57,6 +57,11 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case " ":
 			command := m.toggleSelected()
 			return m, command
+		case "enter":
+			if m.selectedIndex() >= 0 && !m.pending {
+				m.dialog = dialogActions
+				m.actionIndex = 0
+			}
 		case "a":
 			m.dialog = dialogAdd
 			m.input = ""

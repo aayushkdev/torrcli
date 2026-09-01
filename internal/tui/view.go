@@ -24,7 +24,7 @@ func (m model) View() string {
 	}
 	rows = append(rows, m.paneDivider(" Details ", m.focus == focusDetails))
 	rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("a add  d remove  shift+↑/↓ move  ↑/k up  ↓/j down  space pause/resume  q quit"))
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("enter actions  a add  d remove  shift+↑/↓ move  ↑/k up  ↓/j down  space pause/resume  q quit"))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen
@@ -230,6 +230,17 @@ func (m model) dialogView() string {
 			mutedStyle.Render("Downloaded files will be kept."),
 			mutedStyle.Render("enter remove  esc cancel"),
 		)
+	case dialogActions:
+		rows := []string{titleStyle.Render("Torrent actions")}
+		for index, action := range m.torrentActions() {
+			label := "  " + m.actionLabel(action)
+			if index == m.actionIndex {
+				label = selectedStyle.Render("> " + m.actionLabel(action))
+			}
+			rows = append(rows, label)
+		}
+		rows = append(rows, mutedStyle.Render("enter select  esc cancel"))
+		return lipgloss.JoinVertical(lipgloss.Left, rows...)
 	default:
 		return ""
 	}

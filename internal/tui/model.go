@@ -20,6 +20,7 @@ const (
 	dialogNone dialogMode = iota
 	dialogAdd
 	dialogRemove
+	dialogActions
 )
 
 type model struct {
@@ -37,6 +38,7 @@ type model struct {
 	noticeID       int
 	dialog         dialogMode
 	input          string
+	actionIndex    int
 	details        domain.TorrentDetails
 	showDetails    bool
 	detailsLoading bool
