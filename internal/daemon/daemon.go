@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -67,6 +68,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}()
 
 	d.started = time.Now().UTC()
+	slog.Info("torrd started", "socket", d.paths.SocketPath)
 	var connections sync.WaitGroup
 	var connectionMu sync.Mutex
 	activeConnections := make(map[net.Conn]struct{})
@@ -107,11 +109,15 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		slog.Info("torrd stopping")
 		_ = listener.Close()
 		closeConnections()
 		connections.Wait()
 		return nil
 	case err := <-acceptErrors:
+		if err != nil {
+			slog.Error("torrd listener failed", "error", err)
+		}
 		closeConnections()
 		connections.Wait()
 		return err

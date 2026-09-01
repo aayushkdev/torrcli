@@ -95,7 +95,7 @@ func (c *Client) call(ctx context.Context, method string, params any, result any
 		return fmt.Errorf("read %s response: %w", method, err)
 	}
 	if response.Error != nil {
-		return fmt.Errorf("%s: %s", method, response.Error.Message)
+		return fmt.Errorf("%s", response.Error.Message)
 	}
 	encoded, err := json.Marshal(response.Result)
 	if err != nil {

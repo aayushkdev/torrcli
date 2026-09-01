@@ -84,3 +84,7 @@ func InternalError(err error) *Error {
 	}
 	return &Error{Code: CodeInternalError, Message: "internal error"}
 }
+
+func OperationFailed(operation string, err error) *Error {
+	return &Error{Code: CodeOperationFailed, Message: operation + ": " + err.Error()}
+}
