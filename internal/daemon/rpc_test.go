@@ -193,6 +193,10 @@ func (e *recordingEngine) Snapshot(context.Context, model.TorrentID) (model.Torr
 	return e.snapshot, nil
 }
 
+func (e *recordingEngine) Details(context.Context, model.TorrentID) (model.TorrentDetails, error) {
+	return model.TorrentDetails{Torrent: e.snapshot}, nil
+}
+
 func (e *recordingEngine) Events() <-chan model.EngineEvent { return nil }
 
 func (e *recordingEngine) Close() error { return nil }

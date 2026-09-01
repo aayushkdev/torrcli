@@ -115,6 +115,10 @@ func (fakeEngine) Snapshot(context.Context, model.TorrentID) (model.TorrentSnaps
 	return model.TorrentSnapshot{}, nil
 }
 
+func (fakeEngine) Details(context.Context, model.TorrentID) (model.TorrentDetails, error) {
+	return model.TorrentDetails{}, nil
+}
+
 func (fakeEngine) Events() <-chan model.EngineEvent {
 	return nil
 }

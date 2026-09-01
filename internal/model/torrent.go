@@ -44,6 +44,11 @@ type TorrentSnapshot struct {
 	Error          string
 }
 
+type TorrentDetails struct {
+	Torrent TorrentSnapshot `json:"torrent"`
+	Files   []FileSnapshot  `json:"files"`
+}
+
 type EngineEventType string
 
 const (

@@ -14,6 +14,7 @@ const (
 	MethodDaemonInfo             = "daemon.info"
 	MethodTorrentAdd             = "torrent.add"
 	MethodTorrentList            = "torrent.list"
+	MethodTorrentGet             = "torrent.get"
 	MethodTorrentPause           = "torrent.pause"
 	MethodTorrentResume          = "torrent.resume"
 	MethodTorrentRemove          = "torrent.remove"
@@ -72,6 +73,10 @@ type AddTorrentResult struct {
 
 type ListTorrentsResult struct {
 	Torrents []model.TorrentSnapshot `json:"torrents"`
+}
+
+type TorrentDetailsResult struct {
+	Details model.TorrentDetails `json:"details"`
 }
 
 type TorrentParams struct {

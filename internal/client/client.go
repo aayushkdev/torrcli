@@ -50,6 +50,14 @@ func (c *Client) List(ctx context.Context) (rpc.ListTorrentsResult, error) {
 	return result, nil
 }
 
+func (c *Client) Details(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentDetailsResult, error) {
+	var result rpc.TorrentDetailsResult
+	if err := c.call(ctx, rpc.MethodTorrentGet, params, &result); err != nil {
+		return rpc.TorrentDetailsResult{}, err
+	}
+	return result, nil
+}
+
 func (c *Client) Pause(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
 	return c.torrentCall(ctx, rpc.MethodTorrentPause, params)
 }

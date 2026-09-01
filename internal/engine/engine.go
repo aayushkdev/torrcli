@@ -13,6 +13,7 @@ type Engine interface {
 	Remove(context.Context, model.TorrentID, bool) error
 	SetFilePriority(context.Context, model.TorrentID, int, model.FilePriority) error
 	Snapshot(context.Context, model.TorrentID) (model.TorrentSnapshot, error)
+	Details(context.Context, model.TorrentID) (model.TorrentDetails, error)
 	Events() <-chan model.EngineEvent
 	Close() error
 }

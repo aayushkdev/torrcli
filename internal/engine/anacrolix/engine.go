@@ -181,6 +181,30 @@ func (e *Engine) Snapshot(ctx context.Context, id model.TorrentID) (model.Torren
 	if err != nil {
 		return model.TorrentSnapshot{}, err
 	}
+	return e.snapshotLocked(id, entry), nil
+}
+
+func (e *Engine) Details(ctx context.Context, id model.TorrentID) (model.TorrentDetails, error) {
+	if err := ctx.Err(); err != nil {
+		return model.TorrentDetails{}, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	entry, err := e.entry(id)
+	if err != nil {
+		return model.TorrentDetails{}, err
+	}
+	details := model.TorrentDetails{Torrent: e.snapshotLocked(id, entry)}
+	if entry.torrent.Info() == nil {
+		return details, nil
+	}
+	for index, file := range entry.torrent.Files() {
+		details.Files = append(details.Files, model.FileSnapshot{Index: index, Path: file.DisplayPath(), Length: file.Length(), Completed: file.BytesCompleted(), Priority: filePriority(file.Priority())})
+	}
+	return details, nil
+}
+
+func (e *Engine) snapshotLocked(id model.TorrentID, entry torrentEntry) model.TorrentSnapshot {
 	now := time.Now()
 	stats := entry.torrent.Stats()
 	downloaded := stats.BytesReadUsefulData.Int64()
@@ -195,7 +219,7 @@ func (e *Engine) Snapshot(ctx context.Context, id model.TorrentID) (model.Torren
 	}
 	entry.lastDownload, entry.lastUpload, entry.lastSample = downloaded, uploaded, now
 	e.torrents[id] = entry
-	return snapshot(id, entry, downloadRate, uploadRate), nil
+	return snapshot(id, entry, downloadRate, uploadRate)
 }
 
 func (e *Engine) Events() <-chan model.EngineEvent {
@@ -255,6 +279,17 @@ func piecePriority(priority model.FilePriority) torrent.PiecePriority {
 		return torrent.PiecePriorityHigh
 	default:
 		return torrent.PiecePriorityNormal
+	}
+}
+
+func filePriority(priority torrent.PiecePriority) model.FilePriority {
+	switch priority {
+	case torrent.PiecePriorityNone:
+		return model.FilePrioritySkip
+	case torrent.PiecePriorityHigh:
+		return model.FilePriorityHigh
+	default:
+		return model.FilePriorityNormal
 	}
 }
 
