@@ -72,6 +72,13 @@ func (c *Client) Pause(ctx context.Context, params rpc.TorrentParams) (rpc.Torre
 func (c *Client) Resume(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
 	return c.torrentCall(ctx, rpc.MethodTorrentResume, params)
 }
+func (c *Client) Verify(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
+	return c.torrentCall(ctx, rpc.MethodTorrentVerify, params)
+}
+func (c *Client) FindPeers(ctx context.Context, params rpc.TorrentParams) error {
+	var result struct{}
+	return c.call(ctx, rpc.MethodTorrentFindPeers, params, &result)
+}
 func (c *Client) SetFilePriority(ctx context.Context, params rpc.SetFilePriorityParams) (rpc.TorrentResult, error) {
 	return c.torrentCall(ctx, rpc.MethodTorrentSetFilePriority, params)
 }

@@ -18,6 +18,8 @@ const (
 	MethodTorrentGet             = "torrent.get"
 	MethodTorrentPause           = "torrent.pause"
 	MethodTorrentResume          = "torrent.resume"
+	MethodTorrentVerify          = "torrent.verify"
+	MethodTorrentFindPeers       = "torrent.find_peers"
 	MethodTorrentRemove          = "torrent.remove"
 	MethodTorrentSetFilePriority = "torrent.set_file_priority"
 )

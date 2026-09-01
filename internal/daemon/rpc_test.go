@@ -180,6 +180,10 @@ func (e *recordingEngine) Pause(_ context.Context, id model.TorrentID) error {
 
 func (e *recordingEngine) Resume(context.Context, model.TorrentID) error { return nil }
 
+func (e *recordingEngine) Verify(context.Context, model.TorrentID) error { return nil }
+
+func (e *recordingEngine) FindPeers(context.Context, model.TorrentID) error { return nil }
+
 func (e *recordingEngine) Remove(_ context.Context, id model.TorrentID, _ bool) error {
 	e.removedID = id
 	return nil

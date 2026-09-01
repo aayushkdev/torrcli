@@ -10,6 +10,8 @@ type Engine interface {
 	Add(context.Context, model.AddInput) (model.TorrentID, bool, error)
 	Pause(context.Context, model.TorrentID) error
 	Resume(context.Context, model.TorrentID) error
+	Verify(context.Context, model.TorrentID) error
+	FindPeers(context.Context, model.TorrentID) error
 	Remove(context.Context, model.TorrentID, bool) error
 	SetFilePriority(context.Context, model.TorrentID, int, model.FilePriority) error
 	Snapshot(context.Context, model.TorrentID) (model.TorrentSnapshot, error)

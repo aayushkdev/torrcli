@@ -103,6 +103,14 @@ func (fakeEngine) Resume(context.Context, model.TorrentID) error {
 	return nil
 }
 
+func (fakeEngine) Verify(context.Context, model.TorrentID) error {
+	return nil
+}
+
+func (fakeEngine) FindPeers(context.Context, model.TorrentID) error {
+	return nil
+}
+
 func (fakeEngine) Remove(context.Context, model.TorrentID, bool) error {
 	return nil
 }

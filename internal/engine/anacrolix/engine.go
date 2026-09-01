@@ -141,6 +141,63 @@ func (e *Engine) Resume(ctx context.Context, id model.TorrentID) error {
 	return nil
 }
 
+func (e *Engine) Verify(ctx context.Context, id model.TorrentID) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	entry, err := e.entry(id)
+	e.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if entry.torrent.Info() == nil {
+		return fmt.Errorf("torrent metadata is not available yet")
+	}
+	if err := entry.torrent.VerifyDataContext(ctx); err != nil {
+		return fmt.Errorf("verify torrent data: %w", err)
+	}
+	return nil
+}
+
+func (e *Engine) FindPeers(ctx context.Context, id model.TorrentID) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	entry, err := e.entry(id)
+	if err != nil {
+		e.mu.Unlock()
+		return err
+	}
+	info := entry.torrent.Info()
+	servers := e.client.DhtServers()
+	e.mu.Unlock()
+	if info == nil {
+		return fmt.Errorf("torrent metadata is not available yet")
+	}
+	if info.Private != nil && *info.Private {
+		return fmt.Errorf("DHT peer discovery is unavailable for private torrents")
+	}
+	if len(servers) == 0 {
+		return fmt.Errorf("DHT is disabled")
+	}
+	for _, server := range servers {
+		done, stop, err := entry.torrent.AnnounceToDht(server)
+		if err != nil {
+			return fmt.Errorf("announce to DHT: %w", err)
+		}
+		go func() {
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+			}
+			stop()
+		}()
+	}
+	return nil
+}
+
 func (e *Engine) Remove(ctx context.Context, id model.TorrentID, deleteData bool) error {
 	if err := ctx.Err(); err != nil {
 		return err

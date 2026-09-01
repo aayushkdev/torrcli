@@ -50,6 +50,43 @@ func (d *Daemon) resumeTorrent(ctx context.Context, id model.TorrentID) (model.T
 	return torrent, nil
 }
 
+func (d *Daemon) verifyTorrent(ctx context.Context, id model.TorrentID) (model.TorrentSnapshot, error) {
+	d.controlMu.Lock()
+	defer d.controlMu.Unlock()
+	torrent, err := d.torrents.get(ctx, id)
+	if err != nil {
+		return model.TorrentSnapshot{}, err
+	}
+	wasPaused := torrent.State == model.TorrentStatePaused
+	if !wasPaused {
+		if err = d.engine.Pause(ctx, id); err != nil {
+			return model.TorrentSnapshot{}, err
+		}
+		delete(d.scheduled, id)
+	}
+	if err = d.engine.Verify(ctx, id); err != nil {
+		if !wasPaused {
+			_ = d.engine.Resume(context.WithoutCancel(ctx), id)
+		}
+		return model.TorrentSnapshot{}, err
+	}
+	if !wasPaused {
+		if err = d.engine.Resume(ctx, id); err != nil {
+			return model.TorrentSnapshot{}, err
+		}
+	}
+	return d.engine.Snapshot(ctx, id)
+}
+
+func (d *Daemon) findPeers(ctx context.Context, id model.TorrentID) error {
+	d.controlMu.Lock()
+	defer d.controlMu.Unlock()
+	if _, err := d.torrents.get(ctx, id); err != nil {
+		return err
+	}
+	return d.engine.FindPeers(ctx, id)
+}
+
 func (d *Daemon) setFilePriority(ctx context.Context, params rpc.SetFilePriorityParams) (model.TorrentSnapshot, error) {
 	d.controlMu.Lock()
 	defer d.controlMu.Unlock()

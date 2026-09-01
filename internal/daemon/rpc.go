@@ -94,6 +94,25 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 			return nil, d.operationError("resume", err)
 		}
 		return rpc.TorrentResult{Torrent: t}, nil
+	case rpc.MethodTorrentVerify:
+		var p rpc.TorrentParams
+		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" {
+			return nil, rpc.InvalidParams()
+		}
+		t, err := d.verifyTorrent(ctx, p.ID)
+		if err != nil {
+			return nil, d.operationError("verify", err)
+		}
+		return rpc.TorrentResult{Torrent: t}, nil
+	case rpc.MethodTorrentFindPeers:
+		var p rpc.TorrentParams
+		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" {
+			return nil, rpc.InvalidParams()
+		}
+		if err := d.findPeers(ctx, p.ID); err != nil {
+			return nil, d.operationError("find peers", err)
+		}
+		return struct{}{}, nil
 	case rpc.MethodTorrentRemove:
 		var p rpc.RemoveTorrentParams
 		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" {
