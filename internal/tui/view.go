@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	domain "github.com/aayush/torrcli/internal/model"
 )
@@ -29,7 +30,31 @@ func (m model) View() string {
 	if m.dialog == dialogNone {
 		return screen
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialogStyle.Render(m.dialogView()))
+	return overlay(screen, dialogStyle.Render(m.dialogView()), m.width, m.height)
+}
+
+func overlay(background, foreground string, width, height int) string {
+	backgroundLines := strings.Split(background, "\n")
+	foregroundLines := strings.Split(foreground, "\n")
+	foregroundWidth := lipgloss.Width(foreground)
+	left := max(0, (width-foregroundWidth)/2)
+	top := max(0, (height-len(foregroundLines))/2)
+	for len(backgroundLines) < height {
+		backgroundLines = append(backgroundLines, "")
+	}
+	for index, line := range foregroundLines {
+		row := top + index
+		if row >= len(backgroundLines) {
+			break
+		}
+		backgroundLine := backgroundLines[row]
+		prefix := ansi.Cut(backgroundLine, 0, left)
+		prefix += strings.Repeat(" ", max(0, left-ansi.StringWidth(prefix)))
+		dialogLine := line + strings.Repeat(" ", max(0, foregroundWidth-ansi.StringWidth(line)))
+		suffix := ansi.Cut(backgroundLine, left+foregroundWidth, width)
+		backgroundLines[row] = prefix + dialogLine + suffix
+	}
+	return strings.Join(backgroundLines, "\n")
 }
 
 func (m model) detailsPanel(height int) string {
@@ -227,15 +252,21 @@ func (m model) dialogView() string {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			titleStyle.Render("Remove torrent?"),
 			truncate(name, max(20, min(72, m.width-12))),
-			mutedStyle.Render("Downloaded files will be kept."),
-			mutedStyle.Render("enter remove  esc cancel"),
+			mutedStyle.Render("enter confirm  esc cancel"),
 		)
 	case dialogActions:
 		rows := []string{titleStyle.Render("Torrent actions")}
 		for index, action := range m.torrentActions() {
 			label := "  " + m.actionLabel(action)
+			if !m.actionEnabled(action) {
+				label = mutedStyle.Render(label)
+			}
 			if index == m.actionIndex {
-				label = selectedStyle.Render("> " + m.actionLabel(action))
+				if m.actionEnabled(action) {
+					label = selectedStyle.Render("> " + m.actionLabel(action))
+				} else {
+					label = mutedStyle.Render("> " + m.actionLabel(action))
+				}
 			}
 			rows = append(rows, label)
 		}

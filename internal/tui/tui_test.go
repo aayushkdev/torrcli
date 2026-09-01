@@ -82,6 +82,28 @@ func TestModelOpensAndCancelsDialogs(t *testing.T) {
 	}
 }
 
+func TestActionsDialogKeepsTorrentListVisible(t *testing.T) {
+	m := model{width: 100, height: 24, torrents: []domain.TorrentSnapshot{{ID: "one", Name: "example.iso"}}, selectedID: "one", dialog: dialogActions}
+	view := m.View()
+	for _, value := range []string{"example.iso", "Torrent actions", "Force recheck"} {
+		if !strings.Contains(view, value) {
+			t.Errorf("dialog view does not contain %q: %s", value, view)
+		}
+	}
+}
+
+func TestFindPeersIsDisabledWithoutMetadata(t *testing.T) {
+	m := model{torrents: []domain.TorrentSnapshot{{ID: "one", State: domain.TorrentStateFetchingMetadata}}, selectedID: "one", dialog: dialogActions, actionIndex: 2}
+	if m.actionEnabled(actionFindPeers) {
+		t.Fatal("find peers is enabled while metadata is unavailable")
+	}
+	updated, command := m.updateDialog(tea.KeyMsg{Type: tea.KeyEnter})
+	actual := updated.(model)
+	if command != nil || actual.dialog != dialogActions {
+		t.Fatal("disabled action was executed")
+	}
+}
+
 func TestModelRendersDetails(t *testing.T) {
 	m := model{width: 100, height: 24, detailsTab: 1, details: domain.TorrentDetails{Torrent: domain.TorrentSnapshot{ID: "one", Name: "example", Progress: 0.5}, Files: []domain.FileSnapshot{{Path: "folder/file.iso", Length: 2048, Completed: 1024, Priority: domain.FilePriorityHigh}}}}
 	for _, value := range []string{"folder/file.iso", "50.0%", "2.0 KiB", "high", "Content"} {

@@ -57,6 +57,14 @@ func (m model) actionLabel(action torrentAction) string {
 	}
 }
 
+func (m model) actionEnabled(action torrentAction) bool {
+	if action != actionFindPeers {
+		return true
+	}
+	index := m.selectedIndex()
+	return index >= 0 && m.torrents[index].State != domain.TorrentStateFetchingMetadata
+}
+
 func (m *model) verifySelected() tea.Cmd {
 	if m.pending || m.selectedID == "" {
 		return nil
@@ -186,6 +194,9 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			action := actions[m.actionIndex]
+			if !m.actionEnabled(action) {
+				return m, nil
+			}
 			m.dialog = dialogNone
 			switch action {
 			case actionToggle:
