@@ -18,11 +18,14 @@ func TestDaemonAddsAndListsTorrents(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addedAt := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
-	torrentEngine := &recordingEngine{snapshot: model.TorrentSnapshot{
-		ID:      "torrent-a",
-		Name:    "example",
-		AddedAt: addedAt,
-	}}
+	torrentEngine := &recordingEngine{
+		snapshot: model.TorrentSnapshot{
+			ID:      "torrent-a",
+			Name:    "example",
+			AddedAt: addedAt,
+		},
+		created: true,
+	}
 	d := New(platform.Paths{SessionFile: filepath.Join(t.TempDir(), "session.json")}, nil)
 	d.engine = torrentEngine
 	d.session = model.DefaultSession()
@@ -106,7 +109,7 @@ func TestDaemonRemovesNewTorrentWhenSessionSaveFails(t *testing.T) {
 	if err := os.WriteFile(blockedPath, nil, 0o600); err != nil {
 		t.Fatalf("create blocked path: %v", err)
 	}
-	torrentEngine := &recordingEngine{snapshot: model.TorrentSnapshot{ID: "torrent-a"}}
+	torrentEngine := &recordingEngine{snapshot: model.TorrentSnapshot{ID: "torrent-a"}, created: true}
 	d := New(platform.Paths{SessionFile: filepath.Join(blockedPath, "session.json")}, nil)
 	d.engine = torrentEngine
 	d.session = model.DefaultSession()
@@ -125,16 +128,49 @@ func TestDaemonRemovesNewTorrentWhenSessionSaveFails(t *testing.T) {
 	}
 }
 
+func TestDaemonDoesNotPersistExistingTorrent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	blockedPath := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blockedPath, nil, 0o600); err != nil {
+		t.Fatalf("create blocked path: %v", err)
+	}
+	torrentEngine := &recordingEngine{
+		snapshot: model.TorrentSnapshot{ID: "torrent-a", Name: "existing"},
+		created:  false,
+	}
+	d := New(platform.Paths{SessionFile: filepath.Join(blockedPath, "session.json")}, nil)
+	d.engine = torrentEngine
+	d.session = model.DefaultSession()
+	d.torrents = newTorrentSession(ctx)
+	params, err := json.Marshal(rpc.AddTorrentParams{Source: "magnet:?xt=urn:btih:abc", SavePath: "/downloads"})
+	if err != nil {
+		t.Fatalf("marshal params: %v", err)
+	}
+
+	result, rpcError := d.handleRPC(ctx, rpc.Request{Method: rpc.MethodTorrentAdd, Params: params})
+	if rpcError != nil {
+		t.Fatalf("add existing torrent: %#v", rpcError)
+	}
+	if result.(rpc.AddTorrentResult).Torrent != torrentEngine.snapshot {
+		t.Fatalf("add result = %#v", result)
+	}
+	if len(d.session.Order) != 0 || torrentEngine.removedID != "" {
+		t.Fatalf("session = %#v, removed ID = %q", d.session, torrentEngine.removedID)
+	}
+}
+
 type recordingEngine struct {
 	input     model.AddInput
 	snapshot  model.TorrentSnapshot
+	created   bool
 	pausedID  model.TorrentID
 	removedID model.TorrentID
 }
 
 func (e *recordingEngine) Add(_ context.Context, input model.AddInput) (model.TorrentID, bool, error) {
 	e.input = input
-	return e.snapshot.ID, true, nil
+	return e.snapshot.ID, e.created, nil
 }
 
 func (e *recordingEngine) Pause(_ context.Context, id model.TorrentID) error {

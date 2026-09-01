@@ -159,6 +159,9 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if err != nil {
 			return nil, rpc.InternalError(err)
 		}
+		if !created {
+			return rpc.AddTorrentResult{Torrent: torrent}, nil
+		}
 		if err := d.recordTorrent(id, params, torrent); err != nil {
 			if created {
 				_ = d.engine.Remove(context.WithoutCancel(ctx), id, false)
