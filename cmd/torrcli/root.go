@@ -32,7 +32,7 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(addCmd, listCmd, pauseCmd, resumeCmd, removeCmd, priorityCmd, statusCmd)
 }
 
 func ensureDaemon(command *cobra.Command, _ []string) error {
