@@ -78,6 +78,19 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 		_ = store.Close()
 		return id, false, nil
 	}
+	go func() {
+		select {
+		case <-added.GotInfo():
+			added.DownloadAll()
+			for index, priority := range input.FilePriorities {
+				files := added.Files()
+				if index >= 0 && index < len(files) {
+					files[index].SetPriority(piecePriority(priority))
+				}
+			}
+		case <-e.client.Closed():
+		}
+	}()
 	e.torrents[id] = torrentEntry{torrent: added, storage: store, addedAt: time.Now()}
 	return id, true, nil
 }
@@ -144,6 +157,9 @@ func (e *Engine) SetFilePriority(ctx context.Context, id model.TorrentID, fileIn
 	entry, err := e.entry(id)
 	if err != nil {
 		return err
+	}
+	if entry.torrent.Info() == nil {
+		return fmt.Errorf("torrent metadata is not available yet")
 	}
 	files := entry.torrent.Files()
 	if fileIndex < 0 || fileIndex >= len(files) {

@@ -25,8 +25,9 @@ const (
 )
 
 type AddInput struct {
-	Source   string
-	SavePath string
+	Source         string
+	SavePath       string
+	FilePriorities map[int]FilePriority
 }
 
 type TorrentSnapshot struct {

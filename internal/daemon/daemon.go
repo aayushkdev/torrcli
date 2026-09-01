@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -163,7 +164,7 @@ func (d *Daemon) restoreSession(ctx context.Context) {
 			State:   model.TorrentStateError,
 			AddedAt: record.AddedAt,
 		}
-		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath})
+		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath, FilePriorities: filePriorities(record.FilePriorities)})
 		if err == nil && restoredID != id {
 			err = fmt.Errorf("restored torrent ID %q does not match session ID %q", restoredID, id)
 		}
@@ -184,6 +185,16 @@ func (d *Daemon) restoreSession(ctx context.Context) {
 		}
 		_ = d.torrents.put(context.WithoutCancel(ctx), torrent)
 	}
+}
+
+func filePriorities(priorities map[string]model.FilePriority) map[int]model.FilePriority {
+	result := make(map[int]model.FilePriority, len(priorities))
+	for index, priority := range priorities {
+		if parsed, err := strconv.Atoi(index); err == nil && parsed >= 0 {
+			result[parsed] = priority
+		}
+	}
+	return result
 }
 
 func (d *Daemon) recordTorrent(id model.TorrentID, params rpc.AddTorrentParams, torrent model.TorrentSnapshot) error {

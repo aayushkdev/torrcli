@@ -14,14 +14,14 @@ func (d *Daemon) pauseTorrent(ctx context.Context, id model.TorrentID) (model.To
 	if err := d.engine.Pause(ctx, id); err != nil {
 		return model.TorrentSnapshot{}, err
 	}
-	return d.finishControl(ctx, id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStatePaused })
+	return d.finishControl(ctx, id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStatePaused }, func() { _ = d.engine.Resume(context.WithoutCancel(ctx), id) })
 }
 
 func (d *Daemon) resumeTorrent(ctx context.Context, id model.TorrentID) (model.TorrentSnapshot, error) {
 	if err := d.engine.Resume(ctx, id); err != nil {
 		return model.TorrentSnapshot{}, err
 	}
-	return d.finishControl(ctx, id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStateDownloading })
+	return d.finishControl(ctx, id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStateDownloading }, func() { _ = d.engine.Pause(context.WithoutCancel(ctx), id) })
 }
 
 func (d *Daemon) setFilePriority(ctx context.Context, params rpc.SetFilePriorityParams) (model.TorrentSnapshot, error) {
@@ -33,15 +33,18 @@ func (d *Daemon) setFilePriority(ctx context.Context, params rpc.SetFilePriority
 			record.FilePriorities = make(map[string]model.FilePriority)
 		}
 		record.FilePriorities[strconv.Itoa(params.FileIndex)] = params.Priority
-	})
+	}, nil)
 }
 
-func (d *Daemon) finishControl(ctx context.Context, id model.TorrentID, update func(*model.TorrentRecord)) (model.TorrentSnapshot, error) {
+func (d *Daemon) finishControl(ctx context.Context, id model.TorrentID, update func(*model.TorrentRecord), rollback func()) (model.TorrentSnapshot, error) {
 	torrent, err := d.engine.Snapshot(ctx, id)
 	if err != nil {
 		return model.TorrentSnapshot{}, err
 	}
 	if err := d.updateRecord(id, update); err != nil {
+		if rollback != nil {
+			rollback()
+		}
 		return model.TorrentSnapshot{}, err
 	}
 	if err := d.torrents.put(ctx, torrent); err != nil {
@@ -51,10 +54,12 @@ func (d *Daemon) finishControl(ctx context.Context, id model.TorrentID, update f
 }
 
 func (d *Daemon) removeTorrent(ctx context.Context, params rpc.RemoveTorrentParams) error {
-	if err := d.engine.Remove(ctx, params.ID, params.DeleteData); err != nil {
+	previous, err := d.removeRecord(params.ID)
+	if err != nil {
 		return err
 	}
-	if err := d.removeRecord(params.ID); err != nil {
+	if err := d.engine.Remove(ctx, params.ID, params.DeleteData); err != nil {
+		_ = d.replaceSession(previous)
 		return err
 	}
 	return d.torrents.remove(ctx, params.ID)
@@ -77,12 +82,13 @@ func (d *Daemon) updateRecord(id model.TorrentID, update func(*model.TorrentReco
 	return nil
 }
 
-func (d *Daemon) removeRecord(id model.TorrentID) error {
+func (d *Daemon) removeRecord(id model.TorrentID) (model.Session, error) {
 	d.sessionMu.Lock()
 	defer d.sessionMu.Unlock()
+	previous := cloneSession(d.session)
 	session := cloneSession(d.session)
 	if _, ok := session.Torrents[id]; !ok {
-		return fmt.Errorf("torrent %q not found", id)
+		return model.Session{}, fmt.Errorf("torrent %q not found", id)
 	}
 	delete(session.Torrents, id)
 	for index, currentID := range session.Order {
@@ -91,6 +97,16 @@ func (d *Daemon) removeRecord(id model.TorrentID) error {
 			break
 		}
 	}
+	if err := state.SaveSession(d.paths.SessionFile, session); err != nil {
+		return model.Session{}, err
+	}
+	d.session = session
+	return previous, nil
+}
+
+func (d *Daemon) replaceSession(session model.Session) error {
+	d.sessionMu.Lock()
+	defer d.sessionMu.Unlock()
 	if err := state.SaveSession(d.paths.SessionFile, session); err != nil {
 		return err
 	}
