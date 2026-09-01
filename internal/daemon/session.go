@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/aayush/torrcli/internal/model"
 )
@@ -50,6 +51,24 @@ func (s *torrentSession) get(ctx context.Context, id model.TorrentID) (model.Tor
 		return nil
 	})
 	return torrent, err
+}
+
+func (s *torrentSession) list(ctx context.Context) ([]model.TorrentSnapshot, error) {
+	var result []model.TorrentSnapshot
+	err := s.run(ctx, func(torrents map[model.TorrentID]model.TorrentSnapshot) error {
+		result = make([]model.TorrentSnapshot, 0, len(torrents))
+		for _, torrent := range torrents {
+			result = append(result, torrent)
+		}
+		sort.Slice(result, func(i, j int) bool {
+			if result[i].AddedAt.Equal(result[j].AddedAt) {
+				return result[i].ID < result[j].ID
+			}
+			return result[i].AddedAt.Before(result[j].AddedAt)
+		})
+		return nil
+	})
+	return result, err
 }
 
 func (s *torrentSession) run(ctx context.Context, apply func(map[model.TorrentID]model.TorrentSnapshot) error) error {

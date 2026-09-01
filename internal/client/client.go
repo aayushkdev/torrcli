@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/aayush/torrcli/internal/rpc"
 	"github.com/aayush/torrcli/internal/transport"
 )
@@ -19,7 +20,7 @@ func New(socketPath string) *Client {
 
 func (c *Client) Ping(ctx context.Context) (rpc.PingResult, error) {
 	var result rpc.PingResult
-	if err := c.call(ctx, rpc.MethodDaemonPing, &result); err != nil {
+	if err := c.call(ctx, rpc.MethodDaemonPing, nil, &result); err != nil {
 		return rpc.PingResult{}, err
 	}
 	return result, nil
@@ -27,13 +28,29 @@ func (c *Client) Ping(ctx context.Context) (rpc.PingResult, error) {
 
 func (c *Client) Info(ctx context.Context) (rpc.DaemonInfo, error) {
 	var result rpc.DaemonInfo
-	if err := c.call(ctx, rpc.MethodDaemonInfo, &result); err != nil {
+	if err := c.call(ctx, rpc.MethodDaemonInfo, nil, &result); err != nil {
 		return rpc.DaemonInfo{}, err
 	}
 	return result, nil
 }
 
-func (c *Client) call(ctx context.Context, method string, result any) error {
+func (c *Client) Add(ctx context.Context, params rpc.AddTorrentParams) (rpc.AddTorrentResult, error) {
+	var result rpc.AddTorrentResult
+	if err := c.call(ctx, rpc.MethodTorrentAdd, params, &result); err != nil {
+		return rpc.AddTorrentResult{}, err
+	}
+	return result, nil
+}
+
+func (c *Client) List(ctx context.Context) (rpc.ListTorrentsResult, error) {
+	var result rpc.ListTorrentsResult
+	if err := c.call(ctx, rpc.MethodTorrentList, nil, &result); err != nil {
+		return rpc.ListTorrentsResult{}, err
+	}
+	return result, nil
+}
+
+func (c *Client) call(ctx context.Context, method string, params any, result any) error {
 	connection, err := transport.DialContext(ctx, c.socketPath)
 	if err != nil {
 		return fmt.Errorf("connect to torrd: %w", err)
@@ -41,6 +58,13 @@ func (c *Client) call(ctx context.Context, method string, result any) error {
 	defer connection.Close()
 
 	request := rpc.Request{JSONRPC: rpc.Version, ID: json.RawMessage("1"), Method: method}
+	if params != nil {
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("encode %s params: %w", method, err)
+		}
+		request.Params = encoded
+	}
 	if err := json.NewEncoder(connection).Encode(request); err != nil {
 		return fmt.Errorf("write %s: %w", method, err)
 	}

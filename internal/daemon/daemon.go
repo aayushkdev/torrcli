@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aayush/torrcli/internal/engine"
 	"github.com/aayush/torrcli/internal/model"
 	"github.com/aayush/torrcli/internal/platform"
 	"github.com/aayush/torrcli/internal/rpc"
@@ -25,13 +27,15 @@ type Daemon struct {
 	config   model.Config
 	session  model.Session
 	torrents *torrentSession
+	engine   engine.Engine
 }
 
-func New(paths platform.Paths) *Daemon {
-	return &Daemon{paths: paths}
+func New(paths platform.Paths, torrentEngine engine.Engine) *Daemon {
+	return &Daemon{paths: paths, engine: torrentEngine}
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
+	defer d.engine.Close()
 	if err := d.loadState(); err != nil {
 		return err
 	}
@@ -121,7 +125,7 @@ func (d *Daemon) loadState() error {
 	return nil
 }
 
-func (d *Daemon) handleRPC(_ context.Context, request rpc.Request) (any, *rpc.Error) {
+func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.Error) {
 	switch request.Method {
 	case rpc.MethodDaemonPing:
 		return rpc.PingResult{ProtocolVersion: rpc.Version}, nil
@@ -134,6 +138,29 @@ func (d *Daemon) handleRPC(_ context.Context, request rpc.Request) (any, *rpc.Er
 			SessionFile:     d.paths.SessionFile,
 			SocketPath:      d.paths.SocketPath,
 		}, nil
+	case rpc.MethodTorrentAdd:
+		var params rpc.AddTorrentParams
+		if err := json.Unmarshal(request.Params, &params); err != nil {
+			return nil, rpc.InvalidParams()
+		}
+		id, err := d.engine.Add(ctx, model.AddInput{Source: params.Source, SavePath: params.SavePath})
+		if err != nil {
+			return nil, rpc.InternalError(err)
+		}
+		torrent, err := d.engine.Snapshot(ctx, id)
+		if err != nil {
+			return nil, rpc.InternalError(err)
+		}
+		if err := d.torrents.put(ctx, torrent); err != nil {
+			return nil, rpc.InternalError(err)
+		}
+		return rpc.AddTorrentResult{Torrent: torrent}, nil
+	case rpc.MethodTorrentList:
+		torrents, err := d.torrents.list(ctx)
+		if err != nil {
+			return nil, rpc.InternalError(err)
+		}
+		return rpc.ListTorrentsResult{Torrents: torrents}, nil
 	default:
 		return nil, rpc.MethodNotFound(request.Method)
 	}

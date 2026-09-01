@@ -3,13 +3,17 @@ package rpc
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/aayush/torrcli/internal/model"
 )
 
 const Version = "2.0"
 
 const (
-	MethodDaemonPing = "daemon.ping"
-	MethodDaemonInfo = "daemon.info"
+	MethodDaemonPing  = "daemon.ping"
+	MethodDaemonInfo  = "daemon.info"
+	MethodTorrentAdd  = "torrent.add"
+	MethodTorrentList = "torrent.list"
 )
 
 type Request struct {
@@ -35,6 +39,7 @@ const (
 	CodeParseError     = -32700
 	CodeInvalidRequest = -32600
 	CodeMethodNotFound = -32601
+	CodeInvalidParams  = -32602
 	CodeInternalError  = -32603
 )
 
@@ -49,4 +54,17 @@ type DaemonInfo struct {
 	ConfigFile      string    `json:"config_file"`
 	SessionFile     string    `json:"session_file"`
 	SocketPath      string    `json:"socket_path"`
+}
+
+type AddTorrentParams struct {
+	Source   string `json:"source"`
+	SavePath string `json:"save_path"`
+}
+
+type AddTorrentResult struct {
+	Torrent model.TorrentSnapshot `json:"torrent"`
+}
+
+type ListTorrentsResult struct {
+	Torrents []model.TorrentSnapshot `json:"torrents"`
 }

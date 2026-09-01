@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/aayush/torrcli/internal/daemon"
+	"github.com/aayush/torrcli/internal/engine"
+	"github.com/aayush/torrcli/internal/model"
 	"github.com/aayush/torrcli/internal/platform"
 	"github.com/aayush/torrcli/internal/rpc"
 )
@@ -31,7 +33,7 @@ func TestDaemonServesPing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	runResult := make(chan error, 1)
-	go func() { runResult <- daemon.New(paths).Run(ctx) }()
+	go func() { runResult <- daemon.New(paths, fakeEngine{}).Run(ctx) }()
 
 	connection := waitForSocket(t, paths.SocketPath, runResult)
 	defer connection.Close()
@@ -51,6 +53,42 @@ func TestDaemonServesPing(t *testing.T) {
 	if err := <-runResult; err != nil {
 		t.Fatalf("run daemon: %v", err)
 	}
+}
+
+type fakeEngine struct{}
+
+var _ engine.Engine = fakeEngine{}
+
+func (fakeEngine) Add(context.Context, model.AddInput) (model.TorrentID, error) {
+	return "", nil
+}
+
+func (fakeEngine) Pause(context.Context, model.TorrentID) error {
+	return nil
+}
+
+func (fakeEngine) Resume(context.Context, model.TorrentID) error {
+	return nil
+}
+
+func (fakeEngine) Remove(context.Context, model.TorrentID, bool) error {
+	return nil
+}
+
+func (fakeEngine) SetFilePriority(context.Context, model.TorrentID, int, model.FilePriority) error {
+	return nil
+}
+
+func (fakeEngine) Snapshot(context.Context, model.TorrentID) (model.TorrentSnapshot, error) {
+	return model.TorrentSnapshot{}, nil
+}
+
+func (fakeEngine) Events() <-chan model.EngineEvent {
+	return nil
+}
+
+func (fakeEngine) Close() error {
+	return nil
 }
 
 func waitForSocket(t *testing.T, socketPath string, runResult <-chan error) net.Conn {

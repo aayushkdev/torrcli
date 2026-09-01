@@ -74,6 +74,10 @@ func MethodNotFound(method string) *Error {
 	return &Error{Code: CodeMethodNotFound, Message: "method not found: " + method}
 }
 
+func InvalidParams() *Error {
+	return &Error{Code: CodeInvalidParams, Message: "invalid params"}
+}
+
 func InternalError(err error) *Error {
 	if errors.Is(err, context.Canceled) {
 		return &Error{Code: CodeInternalError, Message: "request canceled"}
