@@ -63,6 +63,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = message.Width
 		m.height = message.Height
 	case torrentsLoadedMsg:
+		m.loading = false
 		if message.err != nil {
 			m.loadError = message.err
 			return m, nil

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	domain "github.com/aayush/torrcli/internal/model"
 )
 
 func (m model) View() string {
@@ -124,12 +126,21 @@ func (m model) dialogView() string {
 }
 
 func (m model) tableHeader() string {
+	if m.width < 60 {
+		return fmt.Sprintf("  %-*s %8s %-12s", max(12, m.width-25), "NAME", "PROGRESS", "STATUS")
+	}
+	if m.width < 80 {
+		return fmt.Sprintf("  %-*s %-12s %8s %10s %10s", max(16, m.width-46), "NAME", "STATUS", "PROGRESS", "DOWN", "UP")
+	}
 	nameWidth := max(16, min(42, m.width-62))
 	return fmt.Sprintf("  %-*s %-12s %8s %10s %10s %14s", nameWidth, "NAME", "STATUS", "PROGRESS", "DOWN", "UP", "PEERS")
 }
 
 func (m model) tableRows() []string {
 	if len(m.torrents) == 0 {
+		if m.loading {
+			return []string{mutedStyle.Render("  Loading torrents…")}
+		}
 		return []string{mutedStyle.Render("  No torrents yet")}
 	}
 
@@ -139,7 +150,7 @@ func (m model) tableRows() []string {
 	end := min(len(m.torrents), start+visible)
 	rows := make([]string, 0, end-start)
 	for _, torrent := range m.torrents[start:end] {
-		row := fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s %2d (%ds/%dl)", nameWidth, truncate(torrent.Name, nameWidth), torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate), torrent.ConnectedPeers, torrent.Seeders, torrent.Leechers)
+		row := m.torrentRow(torrent, nameWidth)
 		if torrent.ID == m.selectedID {
 			row = ">" + row[1:]
 			rows = append(rows, selectedStyle.Width(m.width).Render(row))
@@ -148,6 +159,16 @@ func (m model) tableRows() []string {
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func (m model) torrentRow(torrent domain.TorrentSnapshot, nameWidth int) string {
+	if m.width < 60 {
+		return fmt.Sprintf("  %-*s %7.1f%% %-12s", nameWidth, truncate(torrent.Name, nameWidth), torrent.Progress*100, torrent.State)
+	}
+	if m.width < 80 {
+		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate))
+	}
+	return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s %2d (%ds/%dl)", nameWidth, truncate(torrent.Name, nameWidth), torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate), torrent.ConnectedPeers, torrent.Seeders, torrent.Leechers)
 }
 
 func (m model) visibleStart(visible int) int {

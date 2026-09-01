@@ -23,6 +23,7 @@ type model struct {
 	torrents     []domain.TorrentSnapshot
 	selectedID   domain.TorrentID
 	loadError    error
+	loading      bool
 	pending      bool
 	notice       string
 	noticeErr    bool

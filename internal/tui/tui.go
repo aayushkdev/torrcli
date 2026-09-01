@@ -9,6 +9,6 @@ import (
 )
 
 func Run(ctx context.Context, daemon *client.Client) error {
-	_, err := tea.NewProgram(model{ctx: ctx, daemon: daemon}, tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(model{ctx: ctx, daemon: daemon, loading: true}, tea.WithAltScreen()).Run()
 	return err
 }
