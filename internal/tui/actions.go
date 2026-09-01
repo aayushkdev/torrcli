@@ -18,6 +18,35 @@ type daemonClient interface {
 	Pause(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	Remove(context.Context, rpc.RemoveTorrentParams) error
 	Resume(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
+	SetFilePriority(context.Context, rpc.SetFilePriorityParams) (rpc.TorrentResult, error)
+}
+
+func (m *model) setSelectedFilePriority() tea.Cmd {
+	if m.pending || m.selectedFile < 0 || m.selectedFile >= len(m.details.Files) {
+		return nil
+	}
+	file := m.details.Files[m.selectedFile]
+	priority := nextPriority(file.Priority)
+	m.pending = true
+	m.notice = "Updating " + file.Path + "…"
+	m.noticeErr = false
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
+		defer cancel()
+		result, err := m.daemon.SetFilePriority(ctx, rpc.SetFilePriorityParams{ID: m.details.Torrent.ID, FileIndex: file.Index, Priority: priority})
+		return filePriorityResultMsg{torrent: result.Torrent, file: file.Index, priority: priority, err: err}
+	}
+}
+
+func nextPriority(priority domain.FilePriority) domain.FilePriority {
+	switch priority {
+	case domain.FilePrioritySkip:
+		return domain.FilePriorityNormal
+	case domain.FilePriorityNormal:
+		return domain.FilePriorityHigh
+	default:
+		return domain.FilePrioritySkip
+	}
 }
 
 func (m *model) loadDetails() tea.Cmd {

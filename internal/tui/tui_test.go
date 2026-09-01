@@ -90,3 +90,15 @@ func TestModelRendersDetails(t *testing.T) {
 		}
 	}
 }
+
+func TestNextPriority(t *testing.T) {
+	if actual := nextPriority(domain.FilePrioritySkip); actual != domain.FilePriorityNormal {
+		t.Fatalf("skip next = %q", actual)
+	}
+	if actual := nextPriority(domain.FilePriorityNormal); actual != domain.FilePriorityHigh {
+		t.Fatalf("normal next = %q", actual)
+	}
+	if actual := nextPriority(domain.FilePriorityHigh); actual != domain.FilePrioritySkip {
+		t.Fatalf("high next = %q", actual)
+	}
+}

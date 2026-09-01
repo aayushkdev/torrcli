@@ -47,18 +47,34 @@ func (m model) detailsView() string {
 	if len(m.details.Files) == 0 {
 		rows = append(rows, mutedStyle.Render("  Metadata is not available yet"))
 	}
-	for _, file := range m.details.Files[:min(len(m.details.Files), max(1, m.height-9))] {
+	visible := max(1, m.height-9)
+	start := m.detailsStart(visible)
+	end := min(len(m.details.Files), start+visible)
+	for index, file := range m.details.Files[start:end] {
 		progress := 0.0
 		if file.Length > 0 {
 			progress = float64(file.Completed) / float64(file.Length) * 100
 		}
-		rows = append(rows, fmt.Sprintf("  %-40s %7.1f%% %10s  %s", truncate(file.Path, 40), progress, formatBytes(file.Length), file.Priority))
+		row := fmt.Sprintf("  %-40s %7.1f%% %10s  %s", truncate(file.Path, 40), progress, formatBytes(file.Length), file.Priority)
+		if start+index == m.selectedFile {
+			row = ">" + row[1:]
+			rows = append(rows, selectedStyle.Width(m.width).Render(row))
+			continue
+		}
+		rows = append(rows, row)
 	}
 	for len(rows) < max(0, m.height-2) {
 		rows = append(rows, "")
 	}
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), mutedStyle.Render("esc back"))
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), mutedStyle.Render("↑/k up  ↓/j down  space change priority  esc back"))
 	return strings.Join(rows, "\n")
+}
+
+func (m model) detailsStart(visible int) int {
+	if m.selectedFile < visible {
+		return 0
+	}
+	return min(m.selectedFile-visible+1, len(m.details.Files)-visible)
 }
 
 func (m model) header() string {

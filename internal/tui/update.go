@@ -18,9 +18,17 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDialog(message)
 		}
 		if m.showDetails {
-			if message.Type == tea.KeyEsc || message.String() == "q" {
+			switch message.String() {
+			case "esc", "q":
 				m.showDetails = false
 				m.detailsErr = nil
+			case "up", "k":
+				m.selectPreviousFile()
+			case "down", "j":
+				m.selectNextFile()
+			case " ":
+				command := m.setSelectedFilePriority()
+				return m, command
 			}
 			return m, nil
 		}
@@ -74,10 +82,39 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.details = message.details
+		m.selectedFile = 0
 		m.detailsErr = nil
 		m.showDetails = true
+	case filePriorityResultMsg:
+		m.pending = false
+		if message.err != nil {
+			command := m.setNotice("Could not update priority: "+message.err.Error(), true)
+			return m, command
+		}
+		m.details.Torrent = message.torrent
+		m.replaceTorrent(message.torrent)
+		for index, file := range m.details.Files {
+			if file.Index == message.file {
+				m.details.Files[index].Priority = message.priority
+				break
+			}
+		}
+		command := m.setNotice("File priority set to "+string(message.priority), false)
+		return m, command
 	}
 	return m, nil
+}
+
+func (m *model) selectPreviousFile() {
+	if m.selectedFile > 0 {
+		m.selectedFile--
+	}
+}
+
+func (m *model) selectNextFile() {
+	if m.selectedFile < len(m.details.Files)-1 {
+		m.selectedFile++
+	}
 }
 
 func (m model) loadTorrents() tea.Cmd {
