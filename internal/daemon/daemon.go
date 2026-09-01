@@ -28,6 +28,7 @@ type Daemon struct {
 	config    model.Config
 	session   model.Session
 	sessionMu sync.Mutex
+	controlMu sync.Mutex
 	torrents  *torrentSession
 	engine    engine.Engine
 }

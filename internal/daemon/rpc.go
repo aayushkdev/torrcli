@@ -15,6 +15,8 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 	case rpc.MethodDaemonInfo:
 		return rpc.DaemonInfo{DaemonVersion: Version, ProtocolVersion: rpc.Version, StartedAt: d.started, ConfigFile: d.paths.ConfigFile, SessionFile: d.paths.SessionFile, SocketPath: d.paths.SocketPath}, nil
 	case rpc.MethodTorrentAdd:
+		d.controlMu.Lock()
+		defer d.controlMu.Unlock()
 		var p rpc.AddTorrentParams
 		if json.Unmarshal(request.Params, &p) != nil {
 			return nil, rpc.InvalidParams()
