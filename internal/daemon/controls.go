@@ -95,6 +95,7 @@ func (d *Daemon) moveTorrent(ctx context.Context, id model.TorrentID, offset int
 	d.controlMu.Lock()
 	defer d.controlMu.Unlock()
 	d.sessionMu.Lock()
+	previous := cloneSession(d.session)
 	session := cloneSession(d.session)
 	index := -1
 	for i, current := range session.Order {
@@ -118,6 +119,7 @@ func (d *Daemon) moveTorrent(ctx context.Context, id model.TorrentID, offset int
 	d.session = session
 	d.sessionMu.Unlock()
 	if err := d.torrents.move(context.WithoutCancel(ctx), id, offset); err != nil {
+		_ = d.replaceSession(context.WithoutCancel(ctx), previous)
 		return nil, err
 	}
 	return d.torrents.list(ctx)
