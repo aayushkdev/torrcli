@@ -106,6 +106,7 @@ func (e *Engine) Pause(ctx context.Context, id model.TorrentID) error {
 		return err
 	}
 	entry.torrent.DisallowDataDownload()
+	entry.torrent.DisallowDataUpload()
 	entry.paused = true
 	e.torrents[id] = entry
 	return nil
@@ -122,6 +123,7 @@ func (e *Engine) Resume(ctx context.Context, id model.TorrentID) error {
 		return err
 	}
 	entry.torrent.AllowDataDownload()
+	entry.torrent.AllowDataUpload()
 	entry.paused = false
 	e.torrents[id] = entry
 	return nil
