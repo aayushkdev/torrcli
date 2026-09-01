@@ -36,11 +36,16 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if !created {
 			return rpc.AddTorrentResult{Torrent: t}, nil
 		}
+		d.sessionMu.Lock()
+		previous := cloneSession(d.session)
+		d.sessionMu.Unlock()
 		if err = d.recordTorrent(id, p, t); err != nil {
 			_ = d.engine.Remove(context.WithoutCancel(ctx), id, false)
 			return nil, d.operationError("add", err)
 		}
-		if err = d.torrents.put(ctx, t); err != nil {
+		if err = d.torrents.put(context.WithoutCancel(ctx), t); err != nil {
+			_ = d.replaceSession(context.WithoutCancel(ctx), previous)
+			_ = d.engine.Remove(context.WithoutCancel(ctx), id, false)
 			return nil, d.operationError("add", err)
 		}
 		return rpc.AddTorrentResult{Torrent: t}, nil

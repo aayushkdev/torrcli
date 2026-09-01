@@ -20,6 +20,7 @@ func (d *Daemon) pauseTorrent(ctx context.Context, id model.TorrentID) (model.To
 	if err = d.engine.Pause(ctx, id); err != nil {
 		return model.TorrentSnapshot{}, err
 	}
+	delete(d.scheduled, id)
 	if err = d.updateRecord(context.WithoutCancel(ctx), id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStatePaused }); err != nil {
 		_ = d.engine.Resume(context.WithoutCancel(ctx), id)
 		return model.TorrentSnapshot{}, err
@@ -39,6 +40,7 @@ func (d *Daemon) resumeTorrent(ctx context.Context, id model.TorrentID) (model.T
 	if err = d.engine.Resume(ctx, id); err != nil {
 		return model.TorrentSnapshot{}, err
 	}
+	delete(d.scheduled, id)
 	if err = d.updateRecord(context.WithoutCancel(ctx), id, func(record *model.TorrentRecord) { record.DesiredState = model.TorrentStateDownloading }); err != nil {
 		_ = d.engine.Pause(context.WithoutCancel(ctx), id)
 		return model.TorrentSnapshot{}, err
@@ -85,6 +87,7 @@ func (d *Daemon) removeTorrent(ctx context.Context, params rpc.RemoveTorrentPara
 		_ = d.replaceSession(context.WithoutCancel(ctx), previous)
 		return err
 	}
+	delete(d.scheduled, params.ID)
 	return d.torrents.remove(context.WithoutCancel(ctx), params.ID)
 }
 

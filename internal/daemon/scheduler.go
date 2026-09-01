@@ -23,7 +23,7 @@ func (d *Daemon) reconcileSchedule(ctx context.Context) {
 			continue
 		}
 		if record.DesiredState == model.TorrentStatePaused {
-			_ = d.engine.Pause(ctx, torrent.ID)
+			_ = d.setScheduled(ctx, torrent.ID, false)
 			torrent.State = model.TorrentStatePaused
 			_ = d.torrents.put(ctx, torrent)
 			continue
@@ -34,16 +34,34 @@ func (d *Daemon) reconcileSchedule(ctx context.Context) {
 			limit, active = d.config.MaxActiveSeeds, &seeds
 		}
 		if limit > 0 && *active >= limit {
-			_ = d.engine.Pause(ctx, torrent.ID)
+			_ = d.setScheduled(ctx, torrent.ID, false)
 			torrent.State = model.TorrentStateQueued
 			_ = d.torrents.put(ctx, torrent)
 			continue
 		}
-		_ = d.engine.Resume(ctx, torrent.ID)
+		if d.setScheduled(ctx, torrent.ID, true) != nil {
+			continue
+		}
 		if updated, snapshotErr := d.engine.Snapshot(ctx, torrent.ID); snapshotErr == nil {
 			torrent = updated
 		}
 		(*active)++
 		_ = d.torrents.put(ctx, torrent)
 	}
+}
+
+func (d *Daemon) setScheduled(ctx context.Context, id model.TorrentID, running bool) error {
+	if current, ok := d.scheduled[id]; ok && current == running {
+		return nil
+	}
+	var err error
+	if running {
+		err = d.engine.Resume(ctx, id)
+	} else {
+		err = d.engine.Pause(ctx, id)
+	}
+	if err == nil {
+		d.scheduled[id] = running
+	}
+	return err
 }

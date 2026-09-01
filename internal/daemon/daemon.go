@@ -32,10 +32,11 @@ type Daemon struct {
 	controlMu sync.Mutex
 	torrents  *torrentSession
 	engine    engine.Engine
+	scheduled map[model.TorrentID]bool
 }
 
 func New(paths platform.Paths, newEngine func() (engine.Engine, error)) *Daemon {
-	return &Daemon{paths: paths, newEngine: newEngine}
+	return &Daemon{paths: paths, newEngine: newEngine, scheduled: make(map[model.TorrentID]bool)}
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
