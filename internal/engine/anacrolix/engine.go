@@ -34,7 +34,9 @@ type torrentEntry struct {
 }
 
 func New() (*Engine, error) {
-	client, err := torrent.NewClient(torrent.NewDefaultClientConfig())
+	config := torrent.NewDefaultClientConfig()
+	config.DefaultStorage = storage.NewFileOpts(storage.NewFileClientOpts{})
+	client, err := torrent.NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("create torrent client: %w", err)
 	}
