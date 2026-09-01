@@ -60,11 +60,11 @@ func (m model) detailsPanel(height int) string {
 		return fillRows([]string{m.detailsTabs(), mutedStyle.Render("Metadata is not available yet")}, height)
 	}
 	rows = append(rows, m.detailsTabs(), headerStyle.Render("  FILE                                      PROGRESS  PRIORITY"))
-	nameWidth := max(12, min(40, m.width-24))
-	rows[len(rows)-1] = headerStyle.Render(fmt.Sprintf("  %-*s %s %s", nameWidth, "FILE", centerText("PROGRESS", 9), centerText("PRIORITY", 8)))
+	nameWidth := max(12, min(40, m.width-35))
+	rows[len(rows)-1] = headerStyle.Render(fmt.Sprintf("  %-*s %s %s %s", nameWidth, "FILE", centerText("PROGRESS", 9), centerText("SIZE", 10), centerText("PRIORITY", 8)))
 	for _, file := range m.details.Files[:min(len(m.details.Files), height-2)] {
 		progress := float64(file.Completed) * 100 / float64(max(1, int(file.Length)))
-		rows = append(rows, fmt.Sprintf("  %-*s %s %s", nameWidth, truncate(file.Path, nameWidth), centerText(fmt.Sprintf("%.1f%%", progress), 9), centerText(string(file.Priority), 8)))
+		rows = append(rows, fmt.Sprintf("  %-*s %s %s %s", nameWidth, truncate(file.Path, nameWidth), centerText(fmt.Sprintf("%.1f%%", progress), 9), centerText(formatBytes(file.Length), 10), centerText(string(file.Priority), 8)))
 	}
 	return fillRows(rows, height)
 }
@@ -78,11 +78,11 @@ func (m model) paneDivider(name string, active bool) string {
 }
 
 func (m model) detailsTabs() string {
-	overview, files := "Overview", "Files"
+	overview, files := "Overview", "Content"
 	if m.detailsTab == 0 {
 		overview = "[Overview]"
 	} else {
-		files = "[Files]"
+		files = "[Content]"
 	}
 	return mutedStyle.Render(overview + "  " + files)
 }
