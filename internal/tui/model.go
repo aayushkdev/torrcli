@@ -16,19 +16,22 @@ const (
 )
 
 type model struct {
-	ctx        context.Context
-	daemon     daemonClient
-	width      int
-	height     int
-	torrents   []domain.TorrentSnapshot
-	selectedID domain.TorrentID
-	loadError  error
-	pending    bool
-	notice     string
-	noticeErr  bool
-	noticeID   int
-	dialog     dialogMode
-	input      string
+	ctx         context.Context
+	daemon      daemonClient
+	width       int
+	height      int
+	torrents    []domain.TorrentSnapshot
+	selectedID  domain.TorrentID
+	loadError   error
+	pending     bool
+	notice      string
+	noticeErr   bool
+	noticeID    int
+	dialog      dialogMode
+	input       string
+	details     domain.TorrentDetails
+	showDetails bool
+	detailsErr  error
 }
 
 type torrentsLoadedMsg struct {
@@ -46,3 +49,8 @@ type actionResultMsg struct {
 }
 
 type noticeClearedMsg int
+
+type detailsLoadedMsg struct {
+	details domain.TorrentDetails
+	err     error
+}

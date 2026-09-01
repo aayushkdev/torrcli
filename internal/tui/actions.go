@@ -14,9 +14,27 @@ import (
 type daemonClient interface {
 	Add(context.Context, rpc.AddTorrentParams) (rpc.AddTorrentResult, error)
 	List(context.Context) (rpc.ListTorrentsResult, error)
+	Details(context.Context, rpc.TorrentParams) (rpc.TorrentDetailsResult, error)
 	Pause(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	Remove(context.Context, rpc.RemoveTorrentParams) error
 	Resume(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
+}
+
+func (m *model) loadDetails() tea.Cmd {
+	index := m.selectedIndex()
+	if index < 0 || m.pending {
+		return nil
+	}
+	id := m.torrents[index].ID
+	m.pending = true
+	m.notice = "Loading details…"
+	m.noticeErr = false
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
+		defer cancel()
+		result, err := m.daemon.Details(ctx, rpc.TorrentParams{ID: id})
+		return detailsLoadedMsg{details: result.Details, err: err}
+	}
 }
 
 func (m *model) toggleSelected() tea.Cmd {

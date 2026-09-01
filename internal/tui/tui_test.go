@@ -81,3 +81,12 @@ func TestModelOpensAndCancelsDialogs(t *testing.T) {
 		t.Fatalf("dialog = %d", m.dialog)
 	}
 }
+
+func TestModelRendersDetails(t *testing.T) {
+	m := model{width: 100, height: 24, showDetails: true, details: domain.TorrentDetails{Torrent: domain.TorrentSnapshot{ID: "one", Name: "example", Progress: 0.5}, Files: []domain.FileSnapshot{{Path: "folder/file.iso", Length: 2048, Completed: 1024, Priority: domain.FilePriorityHigh}}}}
+	for _, value := range []string{"example", "folder/file.iso", "50.0%", "2.0 KiB", "high", "esc back"} {
+		if !strings.Contains(m.View(), value) {
+			t.Errorf("details view does not contain %q", value)
+		}
+	}
+}

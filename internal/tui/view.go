@@ -11,6 +11,9 @@ func (m model) View() string {
 	if m.width == 0 {
 		return ""
 	}
+	if m.showDetails {
+		return m.detailsView()
+	}
 	rows := []string{
 		m.header(),
 		mutedStyle.Render(strings.Repeat("─", m.width)),
@@ -26,6 +29,36 @@ func (m model) View() string {
 		return screen
 	}
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialogStyle.Render(m.dialogView()))
+}
+
+func (m model) detailsView() string {
+	if m.detailsErr != nil {
+		return lipgloss.JoinVertical(lipgloss.Left, titleStyle.Render("Torrent details"), errorStyle.Render("Could not load details: "+m.detailsErr.Error()), mutedStyle.Render("esc back"))
+	}
+	torrent := m.details.Torrent
+	rows := []string{
+		titleStyle.Render(torrent.Name),
+		mutedStyle.Render("ID " + string(torrent.ID)),
+		mutedStyle.Render(strings.Repeat("─", m.width)),
+		fmt.Sprintf("%s  %.1f%%  ↓%s  ↑%s  %d peers", torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate), torrent.ConnectedPeers),
+		"",
+		headerStyle.Render("  FILE                                      PROGRESS       SIZE       PRIORITY"),
+	}
+	if len(m.details.Files) == 0 {
+		rows = append(rows, mutedStyle.Render("  Metadata is not available yet"))
+	}
+	for _, file := range m.details.Files[:min(len(m.details.Files), max(1, m.height-9))] {
+		progress := 0.0
+		if file.Length > 0 {
+			progress = float64(file.Completed) / float64(file.Length) * 100
+		}
+		rows = append(rows, fmt.Sprintf("  %-40s %7.1f%% %10s  %s", truncate(file.Path, 40), progress, formatBytes(file.Length), file.Priority))
+	}
+	for len(rows) < max(0, m.height-2) {
+		rows = append(rows, "")
+	}
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), mutedStyle.Render("esc back"))
+	return strings.Join(rows, "\n")
 }
 
 func (m model) header() string {
@@ -121,6 +154,20 @@ func formatRate(bytesPerSecond int64) string {
 		return fmt.Sprintf("%.0f %s", rate, units[unit])
 	}
 	return fmt.Sprintf("%.1f %s", rate, units[unit])
+}
+
+func formatBytes(bytes int64) string {
+	units := []string{"B", "KiB", "MiB", "GiB", "TiB"}
+	value := float64(bytes)
+	unit := 0
+	for value >= 1024 && unit < len(units)-1 {
+		value /= 1024
+		unit++
+	}
+	if unit == 0 {
+		return fmt.Sprintf("%.0f %s", value, units[unit])
+	}
+	return fmt.Sprintf("%.1f %s", value, units[unit])
 }
 
 func truncate(value string, width int) string {

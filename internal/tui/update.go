@@ -17,6 +17,13 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dialog != dialogNone {
 			return m.updateDialog(message)
 		}
+		if m.showDetails {
+			if message.Type == tea.KeyEsc || message.String() == "q" {
+				m.showDetails = false
+				m.detailsErr = nil
+			}
+			return m, nil
+		}
 		switch message.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -34,6 +41,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove
 			}
+		case "enter":
+			command := m.loadDetails()
+			return m, command
 		}
 	case tea.WindowSizeMsg:
 		m.width = message.Width
@@ -56,6 +66,16 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.notice = ""
 			m.noticeErr = false
 		}
+	case detailsLoadedMsg:
+		m.pending = false
+		if message.err != nil {
+			m.detailsErr = message.err
+			m.showDetails = true
+			return m, nil
+		}
+		m.details = message.details
+		m.detailsErr = nil
+		m.showDetails = true
 	}
 	return m, nil
 }
