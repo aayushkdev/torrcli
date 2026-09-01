@@ -7,6 +7,7 @@ import (
 
 	"github.com/aayush/torrcli/internal/client"
 	"github.com/aayush/torrcli/internal/platform"
+	"github.com/aayush/torrcli/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -55,5 +56,5 @@ func ensureDaemon(command *cobra.Command, _ []string) error {
 }
 
 func runTUI(context.Context) error {
-	return fmt.Errorf("TUI is not implemented yet")
+	return tui.Run()
 }
