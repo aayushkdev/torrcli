@@ -53,6 +53,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer d.engine.Close()
 	d.torrents = newTorrentSession(ctx)
 	d.restoreSession(ctx)
+	go d.refreshTorrents(ctx)
 
 	listener, err := transport.Listen(d.paths.SocketPath)
 	if err != nil {
@@ -112,6 +113,27 @@ func (d *Daemon) Run(ctx context.Context) error {
 		closeConnections()
 		connections.Wait()
 		return err
+	}
+}
+
+func (d *Daemon) refreshTorrents(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			torrents, err := d.torrents.list(ctx)
+			if err != nil {
+				continue
+			}
+			for _, torrent := range torrents {
+				if updated, err := d.engine.Snapshot(ctx, torrent.ID); err == nil {
+					_ = d.torrents.put(ctx, updated)
+				}
+			}
+		}
 	}
 }
 

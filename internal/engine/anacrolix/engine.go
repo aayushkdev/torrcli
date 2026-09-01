@@ -24,10 +24,13 @@ type Engine struct {
 }
 
 type torrentEntry struct {
-	torrent *torrent.Torrent
-	storage storage.ClientImplCloser
-	addedAt time.Time
-	paused  bool
+	torrent      *torrent.Torrent
+	storage      storage.ClientImplCloser
+	addedAt      time.Time
+	paused       bool
+	lastDownload int64
+	lastUpload   int64
+	lastSample   time.Time
 }
 
 func New() (*Engine, error) {
@@ -158,7 +161,21 @@ func (e *Engine) Snapshot(ctx context.Context, id model.TorrentID) (model.Torren
 	if err != nil {
 		return model.TorrentSnapshot{}, err
 	}
-	return snapshot(id, entry), nil
+	now := time.Now()
+	stats := entry.torrent.Stats()
+	downloaded := stats.BytesReadUsefulData.Int64()
+	uploaded := stats.BytesWrittenData.Int64()
+	downloadRate, uploadRate := int64(0), int64(0)
+	if !entry.lastSample.IsZero() {
+		seconds := now.Sub(entry.lastSample).Seconds()
+		if seconds > 0 {
+			downloadRate = int64(float64(downloaded-entry.lastDownload) / seconds)
+			uploadRate = int64(float64(uploaded-entry.lastUpload) / seconds)
+		}
+	}
+	entry.lastDownload, entry.lastUpload, entry.lastSample = downloaded, uploaded, now
+	e.torrents[id] = entry
+	return snapshot(id, entry, downloadRate, uploadRate), nil
 }
 
 func (e *Engine) Events() <-chan model.EngineEvent {
@@ -221,7 +238,7 @@ func piecePriority(priority model.FilePriority) torrent.PiecePriority {
 	}
 }
 
-func snapshot(id model.TorrentID, entry torrentEntry) model.TorrentSnapshot {
+func snapshot(id model.TorrentID, entry torrentEntry, downloadRate, uploadRate int64) model.TorrentSnapshot {
 	torrent := entry.torrent
 	completed := torrent.BytesCompleted()
 	length := torrent.Length()
@@ -243,7 +260,11 @@ func snapshot(id model.TorrentID, entry torrentEntry) model.TorrentSnapshot {
 		Name:           torrent.Name(),
 		State:          state,
 		Progress:       progress,
+		DownloadRate:   downloadRate,
+		UploadRate:     uploadRate,
 		ConnectedPeers: stats.ActivePeers,
+		Seeders:        stats.ConnectedSeeders,
+		Leechers:       stats.ActivePeers - stats.ConnectedSeeders,
 		AddedAt:        entry.addedAt,
 	}
 }

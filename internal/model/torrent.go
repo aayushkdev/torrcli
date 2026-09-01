@@ -37,6 +37,8 @@ type TorrentSnapshot struct {
 	DownloadRate   int64
 	UploadRate     int64
 	ConnectedPeers int
+	Seeders        int
+	Leechers       int
 	AddedAt        time.Time
 	Error          string
 }
