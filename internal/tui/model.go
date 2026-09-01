@@ -62,3 +62,8 @@ type filePriorityResultMsg struct {
 	priority domain.FilePriority
 	err      error
 }
+
+type torrentsMovedMsg struct {
+	torrents []domain.TorrentSnapshot
+	err      error
+}

@@ -88,6 +88,27 @@ func (s *torrentSession) remove(ctx context.Context, id model.TorrentID) error {
 	})
 }
 
+func (s *torrentSession) move(ctx context.Context, id model.TorrentID, offset int) error {
+	return s.run(ctx, func(state *sessionState) error {
+		index := -1
+		for i, current := range state.order {
+			if current == id {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			return fmt.Errorf("torrent %q not found", id)
+		}
+		target := index + offset
+		if target < 0 || target >= len(state.order) {
+			return nil
+		}
+		state.order[index], state.order[target] = state.order[target], state.order[index]
+		return nil
+	})
+}
+
 func (s *torrentSession) run(ctx context.Context, apply func(*sessionState) error) error {
 	command := sessionCommand{apply: apply, done: make(chan error, 1)}
 	select {

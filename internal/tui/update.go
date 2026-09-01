@@ -52,6 +52,12 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			command := m.loadDetails()
 			return m, command
+		case "shift+up":
+			command := m.moveSelected(-1)
+			return m, command
+		case "shift+down":
+			command := m.moveSelected(1)
+			return m, command
 		}
 	case tea.WindowSizeMsg:
 		m.width = message.Width
@@ -100,6 +106,16 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		command := m.setNotice("File priority set to "+string(message.priority), false)
+		return m, command
+	case torrentsMovedMsg:
+		m.pending = false
+		if message.err != nil {
+			command := m.setNotice("Could not move torrent: "+message.err.Error(), true)
+			return m, command
+		}
+		m.torrents = message.torrents
+		m.ensureSelection()
+		command := m.setNotice("Torrent moved", false)
 		return m, command
 	}
 	return m, nil

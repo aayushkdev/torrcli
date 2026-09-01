@@ -88,6 +88,38 @@ func (d *Daemon) removeTorrent(ctx context.Context, params rpc.RemoveTorrentPara
 	return d.torrents.remove(context.WithoutCancel(ctx), params.ID)
 }
 
+func (d *Daemon) moveTorrent(ctx context.Context, id model.TorrentID, offset int) ([]model.TorrentSnapshot, error) {
+	d.controlMu.Lock()
+	defer d.controlMu.Unlock()
+	d.sessionMu.Lock()
+	session := cloneSession(d.session)
+	index := -1
+	for i, current := range session.Order {
+		if current == id {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		d.sessionMu.Unlock()
+		return nil, fmt.Errorf("torrent %q not found", id)
+	}
+	target := index + offset
+	if target >= 0 && target < len(session.Order) {
+		session.Order[index], session.Order[target] = session.Order[target], session.Order[index]
+	}
+	if err := state.SaveSession(d.paths.SessionFile, session); err != nil {
+		d.sessionMu.Unlock()
+		return nil, err
+	}
+	d.session = session
+	d.sessionMu.Unlock()
+	if err := d.torrents.move(context.WithoutCancel(ctx), id, offset); err != nil {
+		return nil, err
+	}
+	return d.torrents.list(ctx)
+}
+
 func (d *Daemon) filePriority(id model.TorrentID, index int) (model.FilePriority, error) {
 	d.sessionMu.Lock()
 	defer d.sessionMu.Unlock()

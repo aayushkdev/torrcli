@@ -23,7 +23,7 @@ func (m model) View() string {
 	for len(rows) < max(0, m.height-3) {
 		rows = append(rows, "")
 	}
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("a add  d remove  ↑/k up  ↓/j down  space pause/resume  q quit"))
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("a add  d remove  shift+↑/↓ move  ↑/k up  ↓/j down  space pause/resume  q quit"))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen

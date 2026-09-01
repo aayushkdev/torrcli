@@ -19,6 +19,20 @@ type daemonClient interface {
 	Remove(context.Context, rpc.RemoveTorrentParams) error
 	Resume(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	SetFilePriority(context.Context, rpc.SetFilePriorityParams) (rpc.TorrentResult, error)
+	Move(context.Context, rpc.MoveTorrentParams) (rpc.ListTorrentsResult, error)
+}
+
+func (m *model) moveSelected(offset int) tea.Cmd {
+	if m.pending || m.selectedID == "" {
+		return nil
+	}
+	m.pending = true
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
+		defer cancel()
+		result, err := m.daemon.Move(ctx, rpc.MoveTorrentParams{ID: m.selectedID, Offset: offset})
+		return torrentsMovedMsg{torrents: result.Torrents, err: err}
+	}
 }
 
 func (m *model) setSelectedFilePriority() tea.Cmd {

@@ -58,6 +58,14 @@ func (c *Client) Details(ctx context.Context, params rpc.TorrentParams) (rpc.Tor
 	return result, nil
 }
 
+func (c *Client) Move(ctx context.Context, params rpc.MoveTorrentParams) (rpc.ListTorrentsResult, error) {
+	var result rpc.ListTorrentsResult
+	if err := c.call(ctx, rpc.MethodTorrentMove, params, &result); err != nil {
+		return rpc.ListTorrentsResult{}, err
+	}
+	return result, nil
+}
+
 func (c *Client) Pause(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
 	return c.torrentCall(ctx, rpc.MethodTorrentPause, params)
 }

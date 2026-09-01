@@ -60,6 +60,16 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 			return nil, d.operationError("get torrent details", err)
 		}
 		return rpc.TorrentDetailsResult{Details: details}, nil
+	case rpc.MethodTorrentMove:
+		var p rpc.MoveTorrentParams
+		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" || (p.Offset != -1 && p.Offset != 1) {
+			return nil, rpc.InvalidParams()
+		}
+		torrents, err := d.moveTorrent(ctx, p.ID, p.Offset)
+		if err != nil {
+			return nil, d.operationError("move", err)
+		}
+		return rpc.ListTorrentsResult{Torrents: torrents}, nil
 	case rpc.MethodTorrentPause, rpc.MethodTorrentResume:
 		var p rpc.TorrentParams
 		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" {
