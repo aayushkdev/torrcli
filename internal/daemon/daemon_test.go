@@ -33,7 +33,9 @@ func TestDaemonServesPing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	runResult := make(chan error, 1)
-	go func() { runResult <- daemon.New(paths, fakeEngine{}).Run(ctx) }()
+	go func() {
+		runResult <- daemon.New(paths, func() (engine.Engine, error) { return fakeEngine{}, nil }).Run(ctx)
+	}()
 
 	connection := waitForSocket(t, paths.SocketPath, runResult)
 	defer connection.Close()
@@ -52,6 +54,36 @@ func TestDaemonServesPing(t *testing.T) {
 	cancel()
 	if err := <-runResult; err != nil {
 		t.Fatalf("run daemon: %v", err)
+	}
+}
+
+func TestDaemonAcquiresLockBeforeStartingEngine(t *testing.T) {
+	directory := t.TempDir()
+	paths := platform.Paths{
+		ConfigDir:   filepath.Join(directory, "config"),
+		StateDir:    filepath.Join(directory, "state"),
+		RuntimeDir:  filepath.Join(directory, "runtime"),
+		ConfigFile:  filepath.Join(directory, "config", "config.json"),
+		SessionFile: filepath.Join(directory, "state", "session.json"),
+		SocketPath:  filepath.Join(directory, "runtime", "torrd.sock"),
+		LockFile:    filepath.Join(directory, "runtime", "torrd.lock"),
+	}
+	lock, err := platform.AcquireLock(paths.LockFile)
+	if err != nil {
+		t.Fatalf("acquire test lock: %v", err)
+	}
+	defer lock.Close()
+
+	started := false
+	err = daemon.New(paths, func() (engine.Engine, error) {
+		started = true
+		return fakeEngine{}, nil
+	}).Run(context.Background())
+	if err == nil {
+		t.Fatal("run daemon without lock: expected error")
+	}
+	if started {
+		t.Fatal("engine started before the daemon acquired its lock")
 	}
 }
 

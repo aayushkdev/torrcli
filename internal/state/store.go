@@ -162,5 +162,28 @@ func validateSession(session model.Session) error {
 	if session.Torrents == nil {
 		return errors.New("session torrents are required")
 	}
+	seen := make(map[model.TorrentID]struct{}, len(session.Order))
+	for _, id := range session.Order {
+		if id == "" {
+			return errors.New("session torrent ID is required")
+		}
+		if _, ok := seen[id]; ok {
+			return fmt.Errorf("session torrent %q appears more than once", id)
+		}
+		seen[id] = struct{}{}
+		record, ok := session.Torrents[id]
+		if !ok {
+			return fmt.Errorf("session torrent %q is missing its record", id)
+		}
+		if record.Source == "" || record.SavePath == "" {
+			return fmt.Errorf("session torrent %q is incomplete", id)
+		}
+		if record.DesiredState != model.TorrentStateDownloading && record.DesiredState != model.TorrentStatePaused {
+			return fmt.Errorf("session torrent %q has an invalid desired state", id)
+		}
+	}
+	if len(seen) != len(session.Torrents) {
+		return errors.New("session torrent records must appear in order")
+	}
 	return nil
 }

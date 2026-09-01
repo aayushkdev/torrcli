@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/aayush/torrcli/internal/daemon"
+	"github.com/aayush/torrcli/internal/engine"
 	engineanacrolix "github.com/aayush/torrcli/internal/engine/anacrolix"
 	"github.com/aayush/torrcli/internal/platform"
 )
@@ -18,14 +19,11 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	torrentEngine, err := engineanacrolix.New()
-	if err != nil {
-		fatal(err)
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := daemon.New(paths, torrentEngine).Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+	if err := daemon.New(paths, func() (engine.Engine, error) {
+		return engineanacrolix.New()
+	}).Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		fatal(err)
 	}
 }

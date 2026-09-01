@@ -22,30 +22,38 @@ import (
 const Version = "0.1.0-dev"
 
 type Daemon struct {
-	paths    platform.Paths
-	started  time.Time
-	config   model.Config
-	session  model.Session
-	torrents *torrentSession
-	engine   engine.Engine
+	paths     platform.Paths
+	newEngine func() (engine.Engine, error)
+	started   time.Time
+	config    model.Config
+	session   model.Session
+	sessionMu sync.Mutex
+	torrents  *torrentSession
+	engine    engine.Engine
 }
 
-func New(paths platform.Paths, torrentEngine engine.Engine) *Daemon {
-	return &Daemon{paths: paths, engine: torrentEngine}
+func New(paths platform.Paths, newEngine func() (engine.Engine, error)) *Daemon {
+	return &Daemon{paths: paths, newEngine: newEngine}
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
-	defer d.engine.Close()
 	if err := d.loadState(); err != nil {
 		return err
 	}
-	d.torrents = newTorrentSession(ctx)
 
 	lock, err := platform.AcquireLock(d.paths.LockFile)
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
+
+	d.engine, err = d.newEngine()
+	if err != nil {
+		return err
+	}
+	defer d.engine.Close()
+	d.torrents = newTorrentSession(ctx)
+	d.restoreSession(ctx)
 
 	listener, err := transport.Listen(d.paths.SocketPath)
 	if err != nil {
@@ -151,6 +159,9 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if err != nil {
 			return nil, rpc.InternalError(err)
 		}
+		if err := d.recordTorrent(id, params, torrent); err != nil {
+			return nil, rpc.InternalError(err)
+		}
 		if err := d.torrents.put(ctx, torrent); err != nil {
 			return nil, rpc.InternalError(err)
 		}
@@ -164,4 +175,69 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 	default:
 		return nil, rpc.MethodNotFound(request.Method)
 	}
+}
+
+func (d *Daemon) restoreSession(ctx context.Context) {
+	for _, id := range d.session.Order {
+		record := d.session.Torrents[id]
+		torrent := model.TorrentSnapshot{
+			ID:      id,
+			Name:    record.Name,
+			State:   model.TorrentStateError,
+			AddedAt: record.AddedAt,
+		}
+		restoredID, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath})
+		if err == nil && restoredID != id {
+			err = fmt.Errorf("restored torrent ID %q does not match session ID %q", restoredID, id)
+		}
+		if err == nil && record.DesiredState == model.TorrentStatePaused {
+			err = d.engine.Pause(ctx, id)
+		}
+		if err == nil {
+			snapshot, snapshotErr := d.engine.Snapshot(ctx, id)
+			if snapshotErr != nil {
+				err = snapshotErr
+			} else {
+				torrent = snapshot
+				torrent.AddedAt = record.AddedAt
+			}
+		}
+		if err != nil {
+			torrent.Error = err.Error()
+		}
+		_ = d.torrents.put(context.WithoutCancel(ctx), torrent)
+	}
+}
+
+func (d *Daemon) recordTorrent(id model.TorrentID, params rpc.AddTorrentParams, torrent model.TorrentSnapshot) error {
+	d.sessionMu.Lock()
+	defer d.sessionMu.Unlock()
+
+	session := cloneSession(d.session)
+	record, exists := session.Torrents[id]
+	if !exists {
+		session.Order = append(session.Order, id)
+	}
+	record.Source = params.Source
+	record.Name = torrent.Name
+	record.SavePath = params.SavePath
+	record.DesiredState = model.TorrentStateDownloading
+	record.AddedAt = torrent.AddedAt
+	session.Torrents[id] = record
+	if err := state.SaveSession(d.paths.SessionFile, session); err != nil {
+		return err
+	}
+	d.session = session
+	return nil
+}
+
+func cloneSession(session model.Session) model.Session {
+	clone := model.Session{
+		Order:    append([]model.TorrentID(nil), session.Order...),
+		Torrents: make(map[model.TorrentID]model.TorrentRecord, len(session.Torrents)),
+	}
+	for id, record := range session.Torrents {
+		clone.Torrents[id] = record
+	}
+	return clone
 }

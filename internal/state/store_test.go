@@ -54,8 +54,12 @@ func TestLoadSessionRecoversFromBackup(t *testing.T) {
 	}
 
 	session := model.DefaultSession()
-	session.Order = []string{"torrent-a"}
-	session.Torrents["torrent-a"] = model.TorrentRecord{DesiredState: "paused"}
+	session.Order = []model.TorrentID{"torrent-a"}
+	session.Torrents["torrent-a"] = model.TorrentRecord{
+		Source:       "magnet:?xt=urn:btih:abc",
+		SavePath:     "/downloads",
+		DesiredState: model.TorrentStatePaused,
+	}
 	if err := state.SaveSession(path, session); err != nil {
 		t.Fatalf("save session: %v", err)
 	}

@@ -20,22 +20,22 @@ func DefaultConfig(downloadDirectory string) Config {
 }
 
 type Session struct {
-	Order    []string                 `json:"order"`
-	Torrents map[string]TorrentRecord `json:"torrents"`
+	Order    []TorrentID                 `json:"order"`
+	Torrents map[TorrentID]TorrentRecord `json:"torrents"`
 }
 
 type TorrentRecord struct {
-	Source         string            `json:"source"`
-	Name           string            `json:"name"`
-	SavePath       string            `json:"save_path"`
-	DesiredState   string            `json:"desired_state"`
-	AddedAt        time.Time         `json:"added_at"`
-	FilePriorities map[string]string `json:"file_priorities,omitempty"`
+	Source         string                  `json:"source"`
+	Name           string                  `json:"name"`
+	SavePath       string                  `json:"save_path"`
+	DesiredState   TorrentState            `json:"desired_state"`
+	AddedAt        time.Time               `json:"added_at"`
+	FilePriorities map[string]FilePriority `json:"file_priorities,omitempty"`
 }
 
 func DefaultSession() Session {
 	return Session{
-		Order:    []string{},
-		Torrents: map[string]TorrentRecord{},
+		Order:    []TorrentID{},
+		Torrents: map[TorrentID]TorrentRecord{},
 	}
 }
