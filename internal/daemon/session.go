@@ -72,6 +72,22 @@ func (s *torrentSession) list(ctx context.Context) ([]model.TorrentSnapshot, err
 	return result, err
 }
 
+func (s *torrentSession) remove(ctx context.Context, id model.TorrentID) error {
+	return s.run(ctx, func(state *sessionState) error {
+		if _, ok := state.torrents[id]; !ok {
+			return fmt.Errorf("torrent %q not found", id)
+		}
+		delete(state.torrents, id)
+		for index, currentID := range state.order {
+			if currentID == id {
+				state.order = append(state.order[:index], state.order[index+1:]...)
+				break
+			}
+		}
+		return nil
+	})
+}
+
 func (s *torrentSession) run(ctx context.Context, apply func(*sessionState) error) error {
 	command := sessionCommand{apply: apply, done: make(chan error, 1)}
 	select {

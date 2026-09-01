@@ -50,6 +50,27 @@ func (c *Client) List(ctx context.Context) (rpc.ListTorrentsResult, error) {
 	return result, nil
 }
 
+func (c *Client) Pause(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
+	return c.torrentCall(ctx, rpc.MethodTorrentPause, params)
+}
+func (c *Client) Resume(ctx context.Context, params rpc.TorrentParams) (rpc.TorrentResult, error) {
+	return c.torrentCall(ctx, rpc.MethodTorrentResume, params)
+}
+func (c *Client) SetFilePriority(ctx context.Context, params rpc.SetFilePriorityParams) (rpc.TorrentResult, error) {
+	return c.torrentCall(ctx, rpc.MethodTorrentSetFilePriority, params)
+}
+func (c *Client) Remove(ctx context.Context, params rpc.RemoveTorrentParams) error {
+	var result struct{}
+	return c.call(ctx, rpc.MethodTorrentRemove, params, &result)
+}
+func (c *Client) torrentCall(ctx context.Context, method string, params any) (rpc.TorrentResult, error) {
+	var result rpc.TorrentResult
+	if err := c.call(ctx, method, params, &result); err != nil {
+		return rpc.TorrentResult{}, err
+	}
+	return result, nil
+}
+
 func (c *Client) call(ctx context.Context, method string, params any, result any) error {
 	connection, err := transport.DialContext(ctx, c.socketPath)
 	if err != nil {

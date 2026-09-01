@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -131,56 +130,6 @@ func (d *Daemon) loadState() error {
 		return err
 	}
 	return nil
-}
-
-func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.Error) {
-	switch request.Method {
-	case rpc.MethodDaemonPing:
-		return rpc.PingResult{ProtocolVersion: rpc.Version}, nil
-	case rpc.MethodDaemonInfo:
-		return rpc.DaemonInfo{
-			DaemonVersion:   Version,
-			ProtocolVersion: rpc.Version,
-			StartedAt:       d.started,
-			ConfigFile:      d.paths.ConfigFile,
-			SessionFile:     d.paths.SessionFile,
-			SocketPath:      d.paths.SocketPath,
-		}, nil
-	case rpc.MethodTorrentAdd:
-		var params rpc.AddTorrentParams
-		if err := json.Unmarshal(request.Params, &params); err != nil {
-			return nil, rpc.InvalidParams()
-		}
-		id, created, err := d.engine.Add(ctx, model.AddInput{Source: params.Source, SavePath: params.SavePath})
-		if err != nil {
-			return nil, rpc.InternalError(err)
-		}
-		torrent, err := d.engine.Snapshot(ctx, id)
-		if err != nil {
-			return nil, rpc.InternalError(err)
-		}
-		if !created {
-			return rpc.AddTorrentResult{Torrent: torrent}, nil
-		}
-		if err := d.recordTorrent(id, params, torrent); err != nil {
-			if created {
-				_ = d.engine.Remove(context.WithoutCancel(ctx), id, false)
-			}
-			return nil, rpc.InternalError(err)
-		}
-		if err := d.torrents.put(ctx, torrent); err != nil {
-			return nil, rpc.InternalError(err)
-		}
-		return rpc.AddTorrentResult{Torrent: torrent}, nil
-	case rpc.MethodTorrentList:
-		torrents, err := d.torrents.list(ctx)
-		if err != nil {
-			return nil, rpc.InternalError(err)
-		}
-		return rpc.ListTorrentsResult{Torrents: torrents}, nil
-	default:
-		return nil, rpc.MethodNotFound(request.Method)
-	}
 }
 
 func (d *Daemon) restoreSession(ctx context.Context) {

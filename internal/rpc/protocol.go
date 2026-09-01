@@ -10,10 +10,14 @@ import (
 const Version = "2.0"
 
 const (
-	MethodDaemonPing  = "daemon.ping"
-	MethodDaemonInfo  = "daemon.info"
-	MethodTorrentAdd  = "torrent.add"
-	MethodTorrentList = "torrent.list"
+	MethodDaemonPing             = "daemon.ping"
+	MethodDaemonInfo             = "daemon.info"
+	MethodTorrentAdd             = "torrent.add"
+	MethodTorrentList            = "torrent.list"
+	MethodTorrentPause           = "torrent.pause"
+	MethodTorrentResume          = "torrent.resume"
+	MethodTorrentRemove          = "torrent.remove"
+	MethodTorrentSetFilePriority = "torrent.set_file_priority"
 )
 
 type Request struct {
@@ -67,4 +71,20 @@ type AddTorrentResult struct {
 
 type ListTorrentsResult struct {
 	Torrents []model.TorrentSnapshot `json:"torrents"`
+}
+
+type TorrentParams struct {
+	ID model.TorrentID `json:"id"`
+}
+type RemoveTorrentParams struct {
+	ID         model.TorrentID `json:"id"`
+	DeleteData bool            `json:"delete_data"`
+}
+type SetFilePriorityParams struct {
+	ID        model.TorrentID    `json:"id"`
+	FileIndex int                `json:"file_index"`
+	Priority  model.FilePriority `json:"priority"`
+}
+type TorrentResult struct {
+	Torrent model.TorrentSnapshot `json:"torrent"`
 }
