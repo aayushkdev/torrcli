@@ -82,9 +82,7 @@ func readJSON(path string, value any) error {
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
-	decoder.DisallowUnknownFields()
-	return decoder.Decode(value)
+	return json.NewDecoder(file).Decode(value)
 }
 
 func writeJSON(path string, value any) error {

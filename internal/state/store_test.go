@@ -75,3 +75,17 @@ func TestLoadSessionRecoversFromBackup(t *testing.T) {
 		t.Fatalf("recovered order = %#v, want backup session", recovered.Order)
 	}
 }
+
+func TestLoadConfigIgnoresUnknownFields(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"download_directory":"/downloads","max_active_downloads":3,"max_active_seeds":5,"download_limit":0,"upload_limit":0,"listen_port":0,"version":1}`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	config, err := state.LoadOrCreateConfig(path, "/ignored")
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if config.DownloadDirectory != "/downloads" {
+		t.Fatalf("download directory = %q", config.DownloadDirectory)
+	}
+}

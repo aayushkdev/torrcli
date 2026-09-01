@@ -19,6 +19,9 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if json.Unmarshal(request.Params, &p) != nil {
 			return nil, rpc.InvalidParams()
 		}
+		if p.SavePath == "" {
+			p.SavePath = d.config.DownloadDirectory
+		}
 		id, created, err := d.engine.Add(ctx, model.AddInput{Source: p.Source, SavePath: p.SavePath})
 		if err != nil {
 			return nil, rpc.InternalError(err)
