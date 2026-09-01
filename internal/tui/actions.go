@@ -65,13 +65,11 @@ func nextPriority(priority domain.FilePriority) domain.FilePriority {
 
 func (m *model) loadDetails() tea.Cmd {
 	index := m.selectedIndex()
-	if index < 0 || m.pending {
+	if index < 0 || m.detailsLoading {
 		return nil
 	}
 	id := m.torrents[index].ID
-	m.pending = true
-	m.notice = "Loading details…"
-	m.noticeErr = false
+	m.detailsLoading = true
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
 		defer cancel()

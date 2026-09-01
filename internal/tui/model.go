@@ -9,6 +9,13 @@ import (
 
 type dialogMode uint8
 
+type focus uint8
+
+const (
+	focusTorrents focus = iota
+	focusDetails
+)
+
 const (
 	dialogNone dialogMode = iota
 	dialogAdd
@@ -16,24 +23,27 @@ const (
 )
 
 type model struct {
-	ctx          context.Context
-	daemon       daemonClient
-	width        int
-	height       int
-	torrents     []domain.TorrentSnapshot
-	selectedID   domain.TorrentID
-	loadError    error
-	loading      bool
-	pending      bool
-	notice       string
-	noticeErr    bool
-	noticeID     int
-	dialog       dialogMode
-	input        string
-	details      domain.TorrentDetails
-	showDetails  bool
-	detailsErr   error
-	selectedFile int
+	ctx            context.Context
+	daemon         daemonClient
+	width          int
+	height         int
+	torrents       []domain.TorrentSnapshot
+	selectedID     domain.TorrentID
+	loadError      error
+	loading        bool
+	pending        bool
+	notice         string
+	noticeErr      bool
+	noticeID       int
+	dialog         dialogMode
+	input          string
+	details        domain.TorrentDetails
+	showDetails    bool
+	detailsLoading bool
+	detailsTab     int
+	focus          focus
+	detailsErr     error
+	selectedFile   int
 }
 
 type torrentsLoadedMsg struct {

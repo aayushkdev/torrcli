@@ -17,18 +17,31 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dialog != dialogNone {
 			return m.updateDialog(message)
 		}
-		if m.showDetails {
+		if message.String() == "tab" {
+			if m.focus == focusTorrents {
+				m.focus = focusDetails
+			} else {
+				m.focus = focusTorrents
+			}
+			return m, nil
+		}
+		if m.focus == focusDetails {
 			switch message.String() {
-			case "esc", "q":
-				m.showDetails = false
-				m.detailsErr = nil
+			case "left", "h", "right", "l":
+				m.detailsTab = (m.detailsTab + 1) % 2
 			case "up", "k":
-				m.selectPreviousFile()
+				if m.detailsTab == 1 {
+					m.selectPreviousFile()
+				}
 			case "down", "j":
-				m.selectNextFile()
+				if m.detailsTab == 1 {
+					m.selectNextFile()
+				}
 			case " ":
-				command := m.setSelectedFilePriority()
-				return m, command
+				if m.detailsTab == 1 {
+					command := m.setSelectedFilePriority()
+					return m, command
+				}
 			}
 			return m, nil
 		}
@@ -37,8 +50,10 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "up", "k":
 			m.selectPrevious()
+			return m, m.loadDetails()
 		case "down", "j":
 			m.selectNext()
+			return m, m.loadDetails()
 		case " ":
 			command := m.toggleSelected()
 			return m, command
@@ -49,9 +64,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove
 			}
-		case "enter":
-			command := m.loadDetails()
-			return m, command
 		case "shift+up":
 			command := m.moveSelected(-1)
 			return m, command
@@ -71,6 +83,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.torrents = message.torrents
 		m.loadError = nil
 		m.ensureSelection()
+		if m.selectedID != "" && m.details.Torrent.ID != m.selectedID {
+			return m, m.loadDetails()
+		}
 	case refreshMsg:
 		return m, tea.Batch(m.loadTorrents(), refresh())
 	case actionResultMsg:
@@ -82,16 +97,16 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.noticeErr = false
 		}
 	case detailsLoadedMsg:
-		m.pending = false
+		m.detailsLoading = false
 		if message.err != nil {
 			m.detailsErr = message.err
-			m.showDetails = true
+			m.showDetails = false
 			return m, nil
 		}
 		m.details = message.details
 		m.selectedFile = 0
 		m.detailsErr = nil
-		m.showDetails = true
+		m.showDetails = false
 	case filePriorityResultMsg:
 		m.pending = false
 		if message.err != nil {
