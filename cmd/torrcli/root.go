@@ -24,7 +24,7 @@ var rootCmd = &cobra.Command{
 	SilenceErrors:     true,
 	PersistentPreRunE: ensureDaemon,
 	RunE: func(command *cobra.Command, _ []string) error {
-		return runTUI(command.Context())
+		return runTUI(command.Context(), app.daemon)
 	},
 }
 
@@ -55,6 +55,6 @@ func ensureDaemon(command *cobra.Command, _ []string) error {
 	return nil
 }
 
-func runTUI(context.Context) error {
-	return tui.Run()
+func runTUI(ctx context.Context, daemon *client.Client) error {
+	return tui.Run(ctx, daemon)
 }
