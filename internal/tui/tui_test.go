@@ -91,6 +91,36 @@ func TestModelRendersDetails(t *testing.T) {
 	}
 }
 
+func TestModelRendersOverview(t *testing.T) {
+	m := model{
+		width:  120,
+		height: 30,
+		details: domain.TorrentDetails{
+			Torrent: domain.TorrentSnapshot{ID: "one", State: domain.TorrentStateDownloading, Progress: 0.5, DownloadRate: 2048, UploadRate: 1024, ETASeconds: 60, ConnectedPeers: 2, Seeders: 1, Leechers: 1},
+			Info:    domain.TorrentInfo{SavePath: "/downloads", TotalSize: 4096, PieceLength: 1024, PieceCount: 4, InfoHashV1: "v1hash", InfoHashV2: "v2hash", CreatedBy: "torrent maker", Comment: "example comment"},
+			Files:   []domain.FileSnapshot{{Path: "example.iso", Length: 4096, Completed: 2048}},
+		},
+	}
+	view := m.View()
+	for _, value := range []string{"LIVE ACTIVITY", "Downloaded: 2.0 KiB / 4.0 KiB", "Torrent information", "Save path: /downloads", "Hash v1: v1hash", "Created by: torrent maker", "Comment: example comment"} {
+		if !strings.Contains(view, value) {
+			t.Errorf("overview does not contain %q: %s", value, view)
+		}
+	}
+}
+
+func TestModelRefreshesSelectedOverviewSnapshot(t *testing.T) {
+	m := model{
+		selectedID: "one",
+		details:    domain.TorrentDetails{Torrent: domain.TorrentSnapshot{ID: "one", DownloadRate: 1024}},
+	}
+	updated, _ := m.Update(torrentsLoadedMsg{torrents: []domain.TorrentSnapshot{{ID: "one", DownloadRate: 2048}}})
+	m = updated.(model)
+	if m.details.Torrent.DownloadRate != 2048 {
+		t.Fatalf("details download rate = %d", m.details.Torrent.DownloadRate)
+	}
+}
+
 func TestNextPriority(t *testing.T) {
 	if actual := nextPriority(domain.FilePrioritySkip); actual != domain.FilePriorityNormal {
 		t.Fatalf("skip next = %q", actual)

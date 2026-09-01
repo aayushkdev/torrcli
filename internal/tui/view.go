@@ -47,14 +47,31 @@ func (m model) detailsPanel(height int) string {
 	}
 	if m.detailsTab == 0 {
 		t := m.details.Torrent
+		info := m.details.Info
+		downloaded := int64(float64(info.TotalSize) * t.Progress)
+		total := formatKnownBytes(info.TotalSize)
+		completed := "—"
+		if info.TotalSize > 0 {
+			completed = formatBytes(downloaded)
+		}
 		rows = append(rows,
 			m.detailsTabs(),
-			fmt.Sprintf("State: %s", displayState(t.State)),
-			fmt.Sprintf("Progress: %.1f%%", t.Progress*100),
-			fmt.Sprintf("Peers: %d (%d seeders, %d leechers)", t.ConnectedPeers, t.Seeders, t.Leechers),
-			fmt.Sprintf("Download: %s   Upload: %s   ETA: %s", formatRate(t.DownloadRate), formatRate(t.UploadRate), formatETA(t.ETASeconds)),
+			headerStyle.Render("  LIVE ACTIVITY"),
+			fmt.Sprintf("  State: %-12s Progress: %-7.1f%% Downloaded: %s / %s", displayState(t.State), t.Progress*100, completed, total),
+			fmt.Sprintf("  ETA: %-9s Down: %-12s Up: %-12s Peers: %d (%ds/%dl)", formatETA(t.ETASeconds), formatRate(t.DownloadRate), formatRate(t.UploadRate), t.ConnectedPeers, t.Seeders, t.Leechers),
+			"",
+			m.sectionDivider(" Torrent information "),
+			fmt.Sprintf("  Size: %-11s Files: %-5d Pieces: %d × %s", total, len(m.details.Files), info.PieceCount, formatKnownBytes(info.PieceLength)),
+			"  Save path: "+truncate(info.SavePath, max(12, m.width-13)),
+			fmt.Sprintf("  Hash v1: %s   Hash v2: %s", displayHash(info.InfoHashV1), displayHash(info.InfoHashV2)),
 		)
-		return fillRows(rows, height)
+		if info.CreatedBy != "" {
+			rows = append(rows, "  Created by: "+truncate(info.CreatedBy, max(12, m.width-15)))
+		}
+		if info.Comment != "" {
+			rows = append(rows, "  Comment: "+truncate(info.Comment, max(12, m.width-12)))
+		}
+		return fillRows(rows[:min(len(rows), height)], height)
 	}
 	if len(m.details.Files) == 0 {
 		return fillRows([]string{m.detailsTabs(), mutedStyle.Render("Metadata is not available yet")}, height)
@@ -86,6 +103,11 @@ func (m model) paneDivider(name string, active bool) string {
 	return label + mutedStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
 }
 
+func (m model) sectionDivider(name string) string {
+	label := headerStyle.Render(name)
+	return label + mutedStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
+}
+
 func (m model) detailsTabs() string {
 	overview, files := "Overview", "Content"
 	if m.detailsTab == 0 {
@@ -103,7 +125,18 @@ func fillRows(rows []string, height int) string {
 	return strings.Join(rows, "\n")
 }
 
-func (m model) detailsPaneHeight() int { return max(6, m.height/3) }
+func (m model) detailsPaneHeight() int {
+	minimum := 9
+	if m.detailsTab == 0 {
+		if m.details.Info.CreatedBy != "" {
+			minimum++
+		}
+		if m.details.Info.Comment != "" {
+			minimum++
+		}
+	}
+	return max(minimum, m.height/3)
+}
 
 func (m model) mainTableHeight() int { return max(3, m.height-m.detailsPaneHeight()-4) }
 
@@ -280,6 +313,20 @@ func formatETA(seconds int64) string {
 		return fmt.Sprintf("%dm%02ds", seconds/60, seconds%60)
 	}
 	return fmt.Sprintf("%ds", seconds)
+}
+
+func displayHash(hash string) string {
+	if hash == "" {
+		return "—"
+	}
+	return hash
+}
+
+func formatKnownBytes(value int64) string {
+	if value <= 0 {
+		return "—"
+	}
+	return formatBytes(value)
 }
 
 func (m model) visibleStart(visible int) int {

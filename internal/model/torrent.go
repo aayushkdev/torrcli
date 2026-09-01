@@ -47,7 +47,19 @@ type TorrentSnapshot struct {
 
 type TorrentDetails struct {
 	Torrent TorrentSnapshot `json:"torrent"`
+	Info    TorrentInfo     `json:"info"`
 	Files   []FileSnapshot  `json:"files"`
+}
+
+type TorrentInfo struct {
+	SavePath    string `json:"save_path"`
+	TotalSize   int64  `json:"total_size"`
+	PieceLength int64  `json:"piece_length"`
+	PieceCount  int    `json:"piece_count"`
+	InfoHashV1  string `json:"info_hash_v1"`
+	InfoHashV2  string `json:"info_hash_v2"`
+	CreatedBy   string `json:"created_by"`
+	Comment     string `json:"comment"`
 }
 
 type EngineEventType string

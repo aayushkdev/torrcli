@@ -2,6 +2,7 @@ package anacrolix
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"math"
 	"os"
@@ -27,6 +28,8 @@ type Engine struct {
 type torrentEntry struct {
 	torrent          *torrent.Torrent
 	storage          storage.ClientImplCloser
+	savePath         string
+	metaInfo         *metainfo.MetaInfo
 	addedAt          time.Time
 	paused           bool
 	lastDownload     int64
@@ -61,7 +64,7 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 		return "", false, fmt.Errorf("create torrent save path: %w", err)
 	}
 
-	spec, err := torrentSpec(input.Source)
+	spec, metaInfo, err := torrentSpec(input.Source)
 	if err != nil {
 		return "", false, err
 	}
@@ -94,7 +97,7 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 		case <-e.client.Closed():
 		}
 	}()
-	e.torrents[id] = torrentEntry{torrent: added, storage: store, addedAt: time.Now()}
+	e.torrents[id] = torrentEntry{torrent: added, storage: store, savePath: input.SavePath, metaInfo: metaInfo, addedAt: time.Now()}
 	return id, true, nil
 }
 
@@ -203,9 +206,28 @@ func (e *Engine) Details(ctx context.Context, id model.TorrentID) (model.Torrent
 	if err != nil {
 		return model.TorrentDetails{}, err
 	}
-	details := model.TorrentDetails{Torrent: snapshot(id, entry, entry.lastDownloadRate, entry.lastUploadRate)}
-	if entry.torrent.Info() == nil {
+	details := model.TorrentDetails{
+		Torrent: snapshot(id, entry, entry.lastDownloadRate, entry.lastUploadRate),
+		Info: model.TorrentInfo{
+			SavePath: entry.savePath,
+		},
+	}
+	info := entry.torrent.Info()
+	if info == nil {
 		return details, nil
+	}
+	details.Info.TotalSize = entry.torrent.Length()
+	details.Info.PieceLength = info.PieceLength
+	details.Info.PieceCount = info.NumPieces()
+	if len(info.Pieces) > 0 {
+		details.Info.InfoHashV1 = entry.torrent.InfoHash().HexString()
+	}
+	if info.MetaVersion >= 2 {
+		details.Info.InfoHashV2 = fmt.Sprintf("%x", sha256.Sum256(entry.torrent.Metainfo().InfoBytes))
+	}
+	if entry.metaInfo != nil {
+		details.Info.CreatedBy = entry.metaInfo.CreatedBy
+		details.Info.Comment = entry.metaInfo.Comment
 	}
 	for index, file := range entry.torrent.Files() {
 		details.Files = append(details.Files, model.FileSnapshot{Index: index, Path: file.DisplayPath(), Length: file.Length(), Completed: file.BytesCompleted(), Priority: filePriority(file.Priority())})
@@ -262,23 +284,23 @@ func (e *Engine) entry(id model.TorrentID) (torrentEntry, error) {
 	return entry, nil
 }
 
-func torrentSpec(source string) (*torrent.TorrentSpec, error) {
+func torrentSpec(source string) (*torrent.TorrentSpec, *metainfo.MetaInfo, error) {
 	if strings.HasPrefix(strings.ToLower(source), "magnet:") {
 		spec, err := torrent.TorrentSpecFromMagnetUri(source)
 		if err != nil {
-			return nil, fmt.Errorf("parse magnet link: %w", err)
+			return nil, nil, fmt.Errorf("parse magnet link: %w", err)
 		}
-		return spec, nil
+		return spec, nil, nil
 	}
 	meta, err := metainfo.LoadFromFile(source)
 	if err != nil {
-		return nil, fmt.Errorf("load torrent file: %w", err)
+		return nil, nil, fmt.Errorf("load torrent file: %w", err)
 	}
 	spec, err := torrent.TorrentSpecFromMetaInfoErr(meta)
 	if err != nil {
-		return nil, fmt.Errorf("read torrent file: %w", err)
+		return nil, nil, fmt.Errorf("read torrent file: %w", err)
 	}
-	return spec, nil
+	return spec, meta, nil
 }
 
 func piecePriority(priority model.FilePriority) torrent.PiecePriority {

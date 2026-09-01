@@ -86,6 +86,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedID != "" && m.details.Torrent.ID != m.selectedID {
 			return m, m.loadDetails()
 		}
+		m.updateDetailsSnapshot()
 	case refreshMsg:
 		return m, tea.Batch(m.loadTorrents(), refresh())
 	case actionResultMsg:
@@ -107,6 +108,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.details = message.details
+		m.updateDetailsSnapshot()
 		m.selectedFile = 0
 		m.detailsErr = nil
 		m.showDetails = false
@@ -187,6 +189,12 @@ func (m *model) ensureSelection() {
 		return
 	}
 	m.selectedID = m.torrents[0].ID
+}
+
+func (m *model) updateDetailsSnapshot() {
+	if index := m.selectedIndex(); index >= 0 && m.details.Torrent.ID == m.selectedID {
+		m.details.Torrent = m.torrents[index]
+	}
 }
 
 func (m model) selectedIndex() int {
