@@ -42,20 +42,20 @@ func New() (*Engine, error) {
 	}, nil
 }
 
-func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID, error) {
+func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID, bool, error) {
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return "", false, err
 	}
 	if input.SavePath == "" {
-		return "", fmt.Errorf("torrent save path is required")
+		return "", false, fmt.Errorf("torrent save path is required")
 	}
 	if err := os.MkdirAll(input.SavePath, 0o755); err != nil {
-		return "", fmt.Errorf("create torrent save path: %w", err)
+		return "", false, fmt.Errorf("create torrent save path: %w", err)
 	}
 
 	spec, err := torrentSpec(input.Source)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	store := storage.NewFileOpts(storage.NewFileClientOpts{ClientBaseDir: input.SavePath})
 	spec.Storage = store
@@ -65,16 +65,16 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 	added, created, err := e.client.AddTorrentSpec(spec)
 	if err != nil {
 		_ = store.Close()
-		return "", fmt.Errorf("add torrent: %w", err)
+		return "", false, fmt.Errorf("add torrent: %w", err)
 	}
 
 	id := model.TorrentID(added.InfoHash().HexString())
 	if !created {
 		_ = store.Close()
-		return id, nil
+		return id, false, nil
 	}
 	e.torrents[id] = torrentEntry{torrent: added, storage: store, addedAt: time.Now()}
-	return id, nil
+	return id, true, nil
 }
 
 func (e *Engine) Pause(ctx context.Context, id model.TorrentID) error {

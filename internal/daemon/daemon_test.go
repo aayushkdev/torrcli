@@ -91,8 +91,8 @@ type fakeEngine struct{}
 
 var _ engine.Engine = fakeEngine{}
 
-func (fakeEngine) Add(context.Context, model.AddInput) (model.TorrentID, error) {
-	return "", nil
+func (fakeEngine) Add(context.Context, model.AddInput) (model.TorrentID, bool, error) {
+	return "", false, nil
 }
 
 func (fakeEngine) Pause(context.Context, model.TorrentID) error {

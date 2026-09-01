@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -98,15 +99,42 @@ func TestDaemonRestoresSession(t *testing.T) {
 	}
 }
 
-type recordingEngine struct {
-	input    model.AddInput
-	snapshot model.TorrentSnapshot
-	pausedID model.TorrentID
+func TestDaemonRemovesNewTorrentWhenSessionSaveFails(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	blockedPath := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blockedPath, nil, 0o600); err != nil {
+		t.Fatalf("create blocked path: %v", err)
+	}
+	torrentEngine := &recordingEngine{snapshot: model.TorrentSnapshot{ID: "torrent-a"}}
+	d := New(platform.Paths{SessionFile: filepath.Join(blockedPath, "session.json")}, nil)
+	d.engine = torrentEngine
+	d.session = model.DefaultSession()
+	d.torrents = newTorrentSession(ctx)
+	params, err := json.Marshal(rpc.AddTorrentParams{Source: "magnet:?xt=urn:btih:abc", SavePath: "/downloads"})
+	if err != nil {
+		t.Fatalf("marshal params: %v", err)
+	}
+
+	_, rpcError := d.handleRPC(ctx, rpc.Request{Method: rpc.MethodTorrentAdd, Params: params})
+	if rpcError == nil {
+		t.Fatal("add torrent: expected RPC error")
+	}
+	if torrentEngine.removedID != "torrent-a" {
+		t.Fatalf("removed ID = %q, want torrent-a", torrentEngine.removedID)
+	}
 }
 
-func (e *recordingEngine) Add(_ context.Context, input model.AddInput) (model.TorrentID, error) {
+type recordingEngine struct {
+	input     model.AddInput
+	snapshot  model.TorrentSnapshot
+	pausedID  model.TorrentID
+	removedID model.TorrentID
+}
+
+func (e *recordingEngine) Add(_ context.Context, input model.AddInput) (model.TorrentID, bool, error) {
 	e.input = input
-	return e.snapshot.ID, nil
+	return e.snapshot.ID, true, nil
 }
 
 func (e *recordingEngine) Pause(_ context.Context, id model.TorrentID) error {
@@ -116,7 +144,10 @@ func (e *recordingEngine) Pause(_ context.Context, id model.TorrentID) error {
 
 func (e *recordingEngine) Resume(context.Context, model.TorrentID) error { return nil }
 
-func (e *recordingEngine) Remove(context.Context, model.TorrentID, bool) error { return nil }
+func (e *recordingEngine) Remove(_ context.Context, id model.TorrentID, _ bool) error {
+	e.removedID = id
+	return nil
+}
 
 func (e *recordingEngine) SetFilePriority(context.Context, model.TorrentID, int, model.FilePriority) error {
 	return nil

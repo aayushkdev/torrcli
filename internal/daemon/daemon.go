@@ -151,7 +151,7 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if err := json.Unmarshal(request.Params, &params); err != nil {
 			return nil, rpc.InvalidParams()
 		}
-		id, err := d.engine.Add(ctx, model.AddInput{Source: params.Source, SavePath: params.SavePath})
+		id, created, err := d.engine.Add(ctx, model.AddInput{Source: params.Source, SavePath: params.SavePath})
 		if err != nil {
 			return nil, rpc.InternalError(err)
 		}
@@ -160,6 +160,9 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 			return nil, rpc.InternalError(err)
 		}
 		if err := d.recordTorrent(id, params, torrent); err != nil {
+			if created {
+				_ = d.engine.Remove(context.WithoutCancel(ctx), id, false)
+			}
 			return nil, rpc.InternalError(err)
 		}
 		if err := d.torrents.put(ctx, torrent); err != nil {
@@ -186,7 +189,7 @@ func (d *Daemon) restoreSession(ctx context.Context) {
 			State:   model.TorrentStateError,
 			AddedAt: record.AddedAt,
 		}
-		restoredID, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath})
+		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath})
 		if err == nil && restoredID != id {
 			err = fmt.Errorf("restored torrent ID %q does not match session ID %q", restoredID, id)
 		}

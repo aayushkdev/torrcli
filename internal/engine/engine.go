@@ -7,7 +7,7 @@ import (
 )
 
 type Engine interface {
-	Add(context.Context, model.AddInput) (model.TorrentID, error)
+	Add(context.Context, model.AddInput) (model.TorrentID, bool, error)
 	Pause(context.Context, model.TorrentID) error
 	Resume(context.Context, model.TorrentID) error
 	Remove(context.Context, model.TorrentID, bool) error
