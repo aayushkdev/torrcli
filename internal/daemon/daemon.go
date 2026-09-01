@@ -20,10 +20,11 @@ import (
 const Version = "0.1.0-dev"
 
 type Daemon struct {
-	paths   platform.Paths
-	started time.Time
-	config  model.Config
-	session model.Session
+	paths    platform.Paths
+	started  time.Time
+	config   model.Config
+	session  model.Session
+	torrents *torrentSession
 }
 
 func New(paths platform.Paths) *Daemon {
@@ -34,6 +35,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	if err := d.loadState(); err != nil {
 		return err
 	}
+	d.torrents = newTorrentSession(ctx)
 
 	lock, err := platform.AcquireLock(d.paths.LockFile)
 	if err != nil {
