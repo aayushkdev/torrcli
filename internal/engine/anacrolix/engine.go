@@ -3,6 +3,7 @@ package anacrolix
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -109,6 +110,12 @@ func (e *Engine) Pause(ctx context.Context, id model.TorrentID) error {
 	}
 	entry.torrent.DisallowDataDownload()
 	entry.torrent.DisallowDataUpload()
+	for _, peer := range entry.torrent.PeerConns() {
+		_ = peer.Close()
+	}
+	for _, peer := range entry.torrent.WebseedPeerConns() {
+		_ = peer.Close()
+	}
 	entry.paused = true
 	e.torrents[id] = entry
 	return nil
@@ -313,6 +320,10 @@ func snapshot(id model.TorrentID, entry torrentEntry, downloadRate, uploadRate i
 		state = model.TorrentStateSeeding
 	}
 	stats := torrent.Stats()
+	etaSeconds := int64(0)
+	if remaining := length - completed; remaining > 0 && downloadRate > 0 {
+		etaSeconds = int64(math.Ceil(float64(remaining) / float64(downloadRate)))
+	}
 	return model.TorrentSnapshot{
 		ID:             id,
 		Name:           torrent.Name(),
@@ -320,6 +331,7 @@ func snapshot(id model.TorrentID, entry torrentEntry, downloadRate, uploadRate i
 		Progress:       progress,
 		DownloadRate:   downloadRate,
 		UploadRate:     uploadRate,
+		ETASeconds:     etaSeconds,
 		ConnectedPeers: stats.ActivePeers,
 		Seeders:        stats.ConnectedSeeders,
 		Leechers:       stats.ActivePeers - stats.ConnectedSeeders,

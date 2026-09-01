@@ -37,6 +37,7 @@ type TorrentSnapshot struct {
 	Progress       float64
 	DownloadRate   int64
 	UploadRate     int64
+	ETASeconds     int64
 	ConnectedPeers int
 	Seeders        int
 	Leechers       int

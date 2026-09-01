@@ -52,7 +52,7 @@ func (m model) detailsPanel(height int) string {
 			fmt.Sprintf("State: %s", t.State),
 			fmt.Sprintf("Progress: %.1f%%", t.Progress*100),
 			fmt.Sprintf("Peers: %d (%d seeders, %d leechers)", t.ConnectedPeers, t.Seeders, t.Leechers),
-			fmt.Sprintf("Download: %s   Upload: %s", formatRate(t.DownloadRate), formatRate(t.UploadRate)),
+			fmt.Sprintf("Download: %s   Upload: %s   ETA: %s", formatRate(t.DownloadRate), formatRate(t.UploadRate), formatETA(t.ETASeconds)),
 		)
 		return fillRows(rows, height)
 	}
@@ -201,8 +201,8 @@ func (m model) tableHeader() string {
 	if m.width < 80 {
 		return fmt.Sprintf("  %-*s %-12s %8s %10s %10s", max(16, m.width-46), "NAME", "STATUS", "PROGRESS", "DOWN", "UP")
 	}
-	nameWidth := max(16, min(42, m.width-62))
-	return fmt.Sprintf("  %-*s %s %s %s %s %s", nameWidth, "NAME", centerText("STATUS", 12), centerText("PROGRESS", 8), centerText("DOWN", 10), centerText("UP", 10), centerText("PEERS", 14))
+	nameWidth := max(16, min(42, m.width-71))
+	return fmt.Sprintf("  %-*s %s %s %s %s %s %s", nameWidth, "NAME", centerText("STATUS", 12), centerText("PROGRESS", 8), centerText("DOWN", 10), centerText("UP", 10), centerText("ETA", 8), centerText("PEERS", 14))
 }
 
 func (m model) tableRows() []string {
@@ -213,7 +213,7 @@ func (m model) tableRows() []string {
 		return []string{mutedStyle.Render("  No torrents yet")}
 	}
 
-	nameWidth := max(16, min(42, m.width-62))
+	nameWidth := max(16, min(42, m.width-71))
 	visible := max(1, m.height-9)
 	start := m.visibleStart(visible)
 	end := min(len(m.torrents), start+visible)
@@ -238,7 +238,7 @@ func (m model) torrentRow(torrent domain.TorrentSnapshot, nameWidth int) string 
 		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate))
 	}
 	peers := fmt.Sprintf("%d (%ds/%dl)", torrent.ConnectedPeers, torrent.Seeders, torrent.Leechers)
-	return fmt.Sprintf("  %-*s %s %s %s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(string(torrent.State), 12), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 8), centerText(formatRate(torrent.DownloadRate), 10), centerText(formatRate(torrent.UploadRate), 10), centerText(peers, 14))
+	return fmt.Sprintf("  %-*s %s %s %s %s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(string(torrent.State), 12), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 8), centerText(formatRate(torrent.DownloadRate), 10), centerText(formatRate(torrent.UploadRate), 10), centerText(formatETA(torrent.ETASeconds), 8), centerText(peers, 14))
 }
 
 func centerText(value string, width int) string {
@@ -247,6 +247,19 @@ func centerText(value string, width int) string {
 	}
 	left := (width - len(value)) / 2
 	return strings.Repeat(" ", left) + value + strings.Repeat(" ", width-left-len(value))
+}
+
+func formatETA(seconds int64) string {
+	if seconds <= 0 {
+		return "—"
+	}
+	if seconds >= 3600 {
+		return fmt.Sprintf("%dh%02dm", seconds/3600, seconds%3600/60)
+	}
+	if seconds >= 60 {
+		return fmt.Sprintf("%dm%02ds", seconds/60, seconds%60)
+	}
+	return fmt.Sprintf("%ds", seconds)
 }
 
 func (m model) visibleStart(visible int) int {
