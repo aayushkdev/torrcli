@@ -65,7 +65,7 @@ func nextPriority(priority domain.FilePriority) domain.FilePriority {
 
 func (m *model) loadDetails() tea.Cmd {
 	index := m.selectedIndex()
-	if index < 0 || m.detailsLoading {
+	if index < 0 {
 		return nil
 	}
 	id := m.torrents[index].ID
@@ -74,7 +74,7 @@ func (m *model) loadDetails() tea.Cmd {
 		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
 		defer cancel()
 		result, err := m.daemon.Details(ctx, rpc.TorrentParams{ID: id})
-		return detailsLoadedMsg{details: result.Details, err: err}
+		return detailsLoadedMsg{id: id, details: result.Details, err: err}
 	}
 }
 

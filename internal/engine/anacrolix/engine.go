@@ -24,13 +24,15 @@ type Engine struct {
 }
 
 type torrentEntry struct {
-	torrent      *torrent.Torrent
-	storage      storage.ClientImplCloser
-	addedAt      time.Time
-	paused       bool
-	lastDownload int64
-	lastUpload   int64
-	lastSample   time.Time
+	torrent          *torrent.Torrent
+	storage          storage.ClientImplCloser
+	addedAt          time.Time
+	paused           bool
+	lastDownload     int64
+	lastUpload       int64
+	lastDownloadRate int64
+	lastUploadRate   int64
+	lastSample       time.Time
 }
 
 func New() (*Engine, error) {
@@ -194,7 +196,7 @@ func (e *Engine) Details(ctx context.Context, id model.TorrentID) (model.Torrent
 	if err != nil {
 		return model.TorrentDetails{}, err
 	}
-	details := model.TorrentDetails{Torrent: e.snapshotLocked(id, entry)}
+	details := model.TorrentDetails{Torrent: snapshot(id, entry, entry.lastDownloadRate, entry.lastUploadRate)}
 	if entry.torrent.Info() == nil {
 		return details, nil
 	}
@@ -218,6 +220,7 @@ func (e *Engine) snapshotLocked(id model.TorrentID, entry torrentEntry) model.To
 		}
 	}
 	entry.lastDownload, entry.lastUpload, entry.lastSample = downloaded, uploaded, now
+	entry.lastDownloadRate, entry.lastUploadRate = downloadRate, uploadRate
 	e.torrents[id] = entry
 	return snapshot(id, entry, downloadRate, uploadRate)
 }

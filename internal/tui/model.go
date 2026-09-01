@@ -63,6 +63,7 @@ type actionResultMsg struct {
 type noticeClearedMsg int
 
 type detailsLoadedMsg struct {
+	id      domain.TorrentID
 	details domain.TorrentDetails
 	err     error
 }

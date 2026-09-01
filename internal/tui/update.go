@@ -97,6 +97,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.noticeErr = false
 		}
 	case detailsLoadedMsg:
+		if message.id != m.selectedID {
+			return m, nil
+		}
 		m.detailsLoading = false
 		if message.err != nil {
 			m.detailsErr = message.err
