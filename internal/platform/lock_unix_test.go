@@ -3,7 +3,6 @@
 package platform_test
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestAcquireLockPreventsSecondOwner(t *testing.T) {
 		second.Close()
 		t.Fatal("second lock acquisition unexpectedly succeeded")
 	}
-	if !errors.Is(err, platform.ErrLocked) {
-		t.Fatalf("second lock error = %v, want ErrLocked", err)
+	if err == nil || err.Error() != "daemon is already running" {
+		t.Fatalf("second lock error = %v, want daemon is already running", err)
 	}
 }

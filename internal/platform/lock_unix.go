@@ -10,8 +10,6 @@ import (
 	"syscall"
 )
 
-var ErrLocked = errors.New("daemon is already running")
-
 type Lock struct {
 	file *os.File
 }
@@ -28,7 +26,7 @@ func AcquireLock(path string) (*Lock, error) {
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		file.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, ErrLocked
+			return nil, fmt.Errorf("daemon is already running")
 		}
 		return nil, fmt.Errorf("lock daemon: %w", err)
 	}
