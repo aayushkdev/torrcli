@@ -25,7 +25,7 @@ func (m model) View() string {
 	}
 	rows = append(rows, m.paneDivider(" Details ", m.focus == focusDetails))
 	rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("enter actions  a add  d remove  shift+↑/↓ move  ↑/k up  ↓/j down  space pause/resume  q quit"))
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("[a] add  [tab] change pane  [q] quit"))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen
@@ -316,10 +316,10 @@ func (m model) tableRows() []string {
 
 func (m model) torrentRow(torrent domain.TorrentSnapshot, nameWidth int) string {
 	if m.width < 70 {
-		return fmt.Sprintf("  %-*s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 9), centerText(string(torrent.State), 10))
+		return fmt.Sprintf("  %-*s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 9), centerText(displayState(torrent.State), 10))
 	}
 	if m.width < 80 {
-		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate))
+		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), displayState(torrent.State), torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate))
 	}
 	peers := fmt.Sprintf("%d (%ds/%dl)", torrent.ConnectedPeers, torrent.Seeders, torrent.Leechers)
 	return fmt.Sprintf("  %-*s %s %s %s %s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(displayState(torrent.State), 12), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 8), centerText(formatRate(torrent.DownloadRate), 12), centerText(formatRate(torrent.UploadRate), 12), centerText(formatETA(torrent.ETASeconds), 10), centerText(peers, 16))

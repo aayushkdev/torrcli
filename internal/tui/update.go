@@ -65,7 +65,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			m.dialog = dialogAdd
 			m.input = ""
-		case "d":
+		case "delete":
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove
 			}
