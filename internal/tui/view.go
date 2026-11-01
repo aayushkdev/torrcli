@@ -73,6 +73,7 @@ func (m model) detailsPanel(height int) string {
 	if m.detailsTab == 0 {
 		t := m.details.Torrent
 		info := m.details.Info
+		progress := fmt.Sprintf("%.1f%%", t.Progress*100)
 		downloaded := int64(float64(info.TotalSize) * t.Progress)
 		total := formatKnownBytes(info.TotalSize)
 		completed := "—"
@@ -82,7 +83,7 @@ func (m model) detailsPanel(height int) string {
 		rows = append(rows,
 			m.detailsTabs(),
 			headerStyle.Render("  LIVE ACTIVITY"),
-			fmt.Sprintf("  State: %-12s Progress: %-7.1f%% Downloaded: %s / %s", displayState(t.State), t.Progress*100, completed, total),
+			fmt.Sprintf("  State: %-12s Progress: %-8s Downloaded: %s / %s", displayState(t.State), progress, completed, total),
 			fmt.Sprintf("  ETA: %-9s Down: %-12s Up: %-12s Peers: %d (%ds/%dl)", formatETA(t.ETASeconds), formatRate(t.DownloadRate), formatRate(t.UploadRate), t.ConnectedPeers, t.Seeders, t.Leechers),
 			"",
 			m.sectionDivider(" Torrent information "),
@@ -279,10 +280,10 @@ func (m model) dialogView() string {
 
 func (m model) tableHeader() string {
 	if m.width < 70 {
-		nameWidth := max(12, m.width-23)
-		return fmt.Sprintf("  %-*s %s %s", nameWidth, "NAME", centerText("PROGRESS", 9), centerText("STATUS", 10))
+		nameWidth := max(12, m.width-24)
+		return fmt.Sprintf("  %-*s %s %s", nameWidth, "NAME", centerText("PROGRESS", 9), centerText("STATUS", 11))
 	}
-	if m.width < 80 {
+	if m.width < 94 {
 		return fmt.Sprintf("  %-*s %-12s %8s %10s %10s", max(16, m.width-46), "NAME", "STATUS", "PROGRESS", "DOWN", "UP")
 	}
 	nameWidth := max(16, min(42, m.width-81))
@@ -298,6 +299,11 @@ func (m model) tableRows() []string {
 	}
 
 	nameWidth := max(16, min(42, m.width-81))
+	if m.width < 70 {
+		nameWidth = max(12, m.width-24)
+	} else if m.width < 94 {
+		nameWidth = max(16, m.width-46)
+	}
 	visible := max(1, m.height-9)
 	start := m.visibleStart(visible)
 	end := min(len(m.torrents), start+visible)
@@ -316,10 +322,10 @@ func (m model) tableRows() []string {
 
 func (m model) torrentRow(torrent domain.TorrentSnapshot, nameWidth int) string {
 	if m.width < 70 {
-		return fmt.Sprintf("  %-*s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 9), centerText(displayState(torrent.State), 10))
+		return fmt.Sprintf("  %-*s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 9), centerText(displayState(torrent.State), 11))
 	}
-	if m.width < 80 {
-		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), displayState(torrent.State), torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate))
+	if m.width < 94 {
+		return fmt.Sprintf("  %-*s %-12s %7.1f%% %10s %10s", nameWidth, truncate(torrent.Name, nameWidth), displayState(torrent.State), torrent.Progress*100, formatCompactRate(torrent.DownloadRate), formatCompactRate(torrent.UploadRate))
 	}
 	peers := fmt.Sprintf("%d (%ds/%dl)", torrent.ConnectedPeers, torrent.Seeders, torrent.Leechers)
 	return fmt.Sprintf("  %-*s %s %s %s %s %s %s", nameWidth, truncate(torrent.Name, nameWidth), centerText(displayState(torrent.State), 12), centerText(fmt.Sprintf("%.1f%%", torrent.Progress*100), 8), centerText(formatRate(torrent.DownloadRate), 12), centerText(formatRate(torrent.UploadRate), 12), centerText(formatETA(torrent.ETASeconds), 10), centerText(peers, 16))
@@ -391,6 +397,17 @@ func formatRate(bytesPerSecond int64) string {
 		return fmt.Sprintf("%.0f %s", rate, units[unit])
 	}
 	return fmt.Sprintf("%.1f %s", rate, units[unit])
+}
+
+func formatCompactRate(bytesPerSecond int64) string {
+	units := []string{"B/s", "KiB/s", "MiB/s", "GiB/s"}
+	rate := float64(bytesPerSecond)
+	unit := 0
+	for rate >= 1024 && unit < len(units)-1 {
+		rate /= 1024
+		unit++
+	}
+	return fmt.Sprintf("%.0f %s", rate, units[unit])
 }
 
 func formatBytes(bytes int64) string {

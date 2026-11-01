@@ -73,6 +73,48 @@ func TestModelUsesDisplayStateAtEveryTableWidth(t *testing.T) {
 	}
 }
 
+func TestTorrentRowsUseResponsiveNameWidth(t *testing.T) {
+	for _, test := range []struct {
+		width          int
+		progressOffset int
+	}{
+		{width: 60, progressOffset: 41},
+		{width: 75, progressOffset: 48},
+		{width: 90, progressOffset: 63},
+		{width: 100, progressOffset: 36},
+	} {
+		t.Run(fmt.Sprintf("width_%d", test.width), func(t *testing.T) {
+			m := model{width: test.width, height: 20, torrents: []domain.TorrentSnapshot{{Name: "example.iso", State: domain.TorrentStatePaused, Progress: 0.5}}}
+			row := m.tableRows()[0]
+			if actual := strings.Index(row, "50.0%"); actual != test.progressOffset {
+				t.Fatalf("progress starts at column %d, want %d: %q", actual, test.progressOffset, row)
+			}
+		})
+	}
+}
+
+func TestMidWidthTorrentRowsDoNotOverflow(t *testing.T) {
+	m := model{
+		width:  90,
+		height: 20,
+		torrents: []domain.TorrentSnapshot{{
+			Name:         "example.iso",
+			State:        domain.TorrentStateDownloading,
+			DownloadRate: 540672,
+		}},
+	}
+	row := m.tableRows()[0]
+	if len(row) != m.width {
+		t.Fatalf("row length = %d, want %d: %q", len(row), m.width, row)
+	}
+	if strings.Contains(row, "ETA") || strings.Contains(m.tableHeader(), "ETA") {
+		t.Fatalf("mid-width layout shows fields that do not fit")
+	}
+	if !strings.Contains(row, "528 KiB/s") {
+		t.Fatalf("row does not use compact rate: %q", row)
+	}
+}
+
 func TestModelUpdatesTorrentAfterAction(t *testing.T) {
 	m := model{torrents: []domain.TorrentSnapshot{{ID: "one", State: domain.TorrentStateDownloading}}}
 	updated, _ := m.Update(actionResultMsg{torrent: domain.TorrentSnapshot{ID: "one", State: domain.TorrentStatePaused}, action: "pause"})
@@ -154,7 +196,7 @@ func TestModelRendersOverview(t *testing.T) {
 		},
 	}
 	view := m.View()
-	for _, value := range []string{"LIVE ACTIVITY", "Downloaded: 2.0 KiB / 4.0 KiB", "Torrent information", "Save path: /downloads", "Hash v1: v1hash", "Created by: torrent maker", "Comment: example comment"} {
+	for _, value := range []string{"LIVE ACTIVITY", "Progress: 50.0%", "Downloaded: 2.0 KiB / 4.0 KiB", "Torrent information", "Save path: /downloads", "Hash v1: v1hash", "Created by: torrent maker", "Comment: example comment"} {
 		if !strings.Contains(view, value) {
 			t.Errorf("overview does not contain %q: %s", value, view)
 		}
