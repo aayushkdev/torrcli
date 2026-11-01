@@ -178,6 +178,8 @@ func TestFindPeersIsDisabledWithoutMetadata(t *testing.T) {
 
 func TestModelRendersDetails(t *testing.T) {
 	m := model{width: 100, height: 24, detailsTab: 1, details: domain.TorrentDetails{Torrent: domain.TorrentSnapshot{ID: "one", Name: "example", Progress: 0.5}, Files: []domain.FileSnapshot{{Path: "folder/file.iso", Length: 2048, Completed: 1024, Priority: domain.FilePriorityHigh}}}}
+	m.torrents = []domain.TorrentSnapshot{m.details.Torrent}
+	m.selectedID = m.details.Torrent.ID
 	for _, value := range []string{"folder/file.iso", "50.0%", "2.0 KiB", "high", "Content"} {
 		if !strings.Contains(m.View(), value) {
 			t.Errorf("details view does not contain %q", value)
@@ -195,6 +197,8 @@ func TestModelRendersOverview(t *testing.T) {
 			Files:   []domain.FileSnapshot{{Path: "example.iso", Length: 4096, Completed: 2048}},
 		},
 	}
+	m.torrents = []domain.TorrentSnapshot{m.details.Torrent}
+	m.selectedID = m.details.Torrent.ID
 	view := m.View()
 	for _, value := range []string{"LIVE ACTIVITY", "Progress: 50.0%", "Downloaded: 2.0 KiB / 4.0 KiB", "Torrent information", "Save path: /downloads", "Hash v1: v1hash", "Created by: torrent maker", "Comment: example comment"} {
 		if !strings.Contains(view, value) {

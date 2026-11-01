@@ -23,9 +23,13 @@ func (m model) View() string {
 	for len(rows) < m.mainTableHeight() {
 		rows = append(rows, "")
 	}
-	rows = append(rows, m.paneDivider(" Details ", m.focus == focusDetails))
-	rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render("[a] add  [tab] change pane  [q] quit"))
+	help := "[a] add  [q] quit"
+	if m.selectedIndex() >= 0 {
+		rows = append(rows, m.paneDivider(" Details ", m.focus == focusDetails))
+		rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
+		help = "[a] add  [tab] change pane  [q] quit"
+	}
+	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render(help))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen
@@ -164,7 +168,12 @@ func (m model) detailsPaneHeight() int {
 	return max(minimum, m.height/3)
 }
 
-func (m model) mainTableHeight() int { return max(3, m.height-m.detailsPaneHeight()-4) }
+func (m model) mainTableHeight() int {
+	if m.selectedIndex() < 0 {
+		return max(3, m.height-3)
+	}
+	return max(3, m.height-m.detailsPaneHeight()-4)
+}
 
 func (m model) detailsView() string {
 	if m.detailsErr != nil {

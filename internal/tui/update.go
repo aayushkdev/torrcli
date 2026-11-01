@@ -18,7 +18,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDialog(message)
 		}
 		if message.String() == "tab" {
-			if m.focus == focusTorrents {
+			if m.focus == focusTorrents && m.selectedIndex() >= 0 {
 				m.focus = focusDetails
 			} else {
 				m.focus = focusTorrents
@@ -190,7 +190,12 @@ func (m *model) selectNext() {
 }
 
 func (m *model) ensureSelection() {
-	if m.selectedIndex() >= 0 || len(m.torrents) == 0 {
+	if len(m.torrents) == 0 {
+		m.selectedID = ""
+		m.focus = focusTorrents
+		return
+	}
+	if m.selectedIndex() >= 0 {
 		return
 	}
 	m.selectedID = m.torrents[0].ID
