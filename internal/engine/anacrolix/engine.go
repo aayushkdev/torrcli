@@ -216,18 +216,71 @@ func (e *Engine) Remove(ctx context.Context, id model.TorrentID, deleteData bool
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if deleteData {
-		return fmt.Errorf("deleting torrent data is not implemented")
-	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	entry, err := e.entry(id)
 	if err != nil {
 		return err
 	}
+	var root *os.Root
+	var paths []string
+	var restoreSpec *torrent.TorrentSpec
+	if deleteData {
+		info := entry.torrent.Info()
+		if info == nil {
+			return fmt.Errorf("cannot delete files before torrent metadata is available")
+		}
+		root, paths, err = prepareDataRemoval(entry.savePath, info)
+		if err != nil {
+			return err
+		}
+		if root != nil {
+			defer root.Close()
+		}
+		if err = e.checkSharedFiles(entry, paths); err != nil {
+			return err
+		}
+		meta := entry.torrent.Metainfo()
+		restoreSpec, err = torrent.TorrentSpecFromMetaInfoErr(&meta)
+		if err != nil {
+			return err
+		}
+	}
 	entry.torrent.Drop()
-	if err := entry.storage.Close(); err != nil {
-		return fmt.Errorf("close torrent storage: %w", err)
+	closeErr := entry.storage.Close()
+	if deleteData {
+		err = closeErr
+		if err == nil {
+			err = removeDataFiles(root, paths)
+		}
+		if err != nil {
+			// A failed filesystem operation must not leave the session referring to a
+			// dropped torrent. Restore it so remaining files can be checked and retried.
+			store := newFileStorage(entry.savePath)
+			restoreSpec.Storage = store
+			restoreSpec.DisallowDataDownload = entry.paused
+			restoreSpec.DisallowDataUpload = entry.paused
+			restored, _, restoreErr := e.client.AddTorrentSpec(restoreSpec)
+			if restoreErr != nil {
+				_ = store.Close()
+				return fmt.Errorf("delete files: %v; restore torrent: %w", err, restoreErr)
+			}
+			entry.torrent, entry.storage = restored, store
+			entry.boosted = nil
+			entry.lastSample = time.Time{}
+			for index, file := range restored.Files() {
+				priority := model.FilePriorityNormal
+				if saved, ok := entry.filePriorities[index]; ok {
+					priority = saved
+				}
+				file.SetPriority(piecePriority(priority))
+			}
+			updateSequential(&entry)
+			e.torrents[id] = entry
+			return fmt.Errorf("could not delete all torrent files: %w", err)
+		}
+	} else if closeErr != nil {
+		return fmt.Errorf("close torrent storage: %w", closeErr)
 	}
 	delete(e.torrents, id)
 	return nil

@@ -220,9 +220,15 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case actionRemove:
 				m.dialog = dialogRemove
 				m.removeCancel = false
+				m.removeDeleteData = false
+				m.removeOption = false
 			}
 			return m, nil
 		case dialogRemove:
+			if m.removeOption {
+				m.removeDeleteData = !m.removeDeleteData
+				return m, nil
+			}
 			m.dialog = dialogNone
 			if m.removeCancel {
 				return m, nil
@@ -234,8 +240,24 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if m.dialog == dialogRemove {
 		switch key.Type {
-		case tea.KeyLeft, tea.KeyRight, tea.KeyUp, tea.KeyDown, tea.KeyTab, tea.KeyShiftTab:
+		case tea.KeyLeft, tea.KeyRight:
+			m.removeOption = false
 			m.removeCancel = !m.removeCancel
+		case tea.KeyUp, tea.KeyDown:
+			m.removeOption = !m.removeOption
+		case tea.KeySpace:
+			if m.removeOption {
+				m.removeDeleteData = !m.removeDeleteData
+			}
+		case tea.KeyTab, tea.KeyShiftTab:
+			if m.removeOption {
+				m.removeOption = false
+				m.removeCancel = false
+			} else if !m.removeCancel {
+				m.removeCancel = true
+			} else {
+				m.removeOption = true
+			}
 		}
 	}
 	if m.dialog == dialogActions {
@@ -267,13 +289,14 @@ func (m *model) removeSelected() tea.Cmd {
 		return nil
 	}
 	torrent := m.torrents[index]
+	deleteData := m.removeDeleteData
 	m.pending = true
 	m.notice = "Removing " + torrent.Name + "…"
 	m.noticeErr = false
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
 		defer cancel()
-		err := m.daemon.Remove(ctx, rpc.RemoveTorrentParams{ID: torrent.ID})
+		err := m.daemon.Remove(ctx, rpc.RemoveTorrentParams{ID: torrent.ID, DeleteData: deleteData})
 		return actionResultMsg{removedID: torrent.ID, action: "remove", err: err}
 	}
 }

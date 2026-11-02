@@ -260,17 +260,27 @@ func (m model) dialogView() string {
 		for _, line := range nameLines {
 			rows = append(rows, lipgloss.NewStyle().Foreground(addText).Background(addSurface).Render(line))
 		}
-		rows = append(rows, "", addHintStyle.Render("Downloaded files will be kept."), "")
+		option := "  [ ] Delete downloaded files"
+		optionStyle := lipgloss.NewStyle().Foreground(addText).Background(addSurface).Width(width)
+		if m.removeDeleteData {
+			option = "  [x] Delete downloaded files"
+		}
+		if m.removeOption {
+			option = ">" + option[1:]
+			optionStyle = optionStyle.Foreground(addAccent).Background(addFocusSurface)
+		}
+		rows = append(rows, "", optionStyle.Render(option))
+		rows = append(rows, "")
 		removeKey, cancelKey := dialogKeyStyle, dialogKeyStyle
-		if m.removeCancel {
+		if !m.removeOption && m.removeCancel {
 			cancelKey = cancelKey.Foreground(addInputSurface).Background(addAccent)
-		} else {
+		} else if !m.removeOption {
 			removeKey = removeKey.Foreground(addInputSurface).Background(dangerColor)
 		}
 		remove := removeKey.Render(" Enter ") + addHintStyle.Render(" Remove")
 		cancel := cancelKey.Render(" Esc ") + addHintStyle.Render(" cancel")
 		rows = append(rows, remove+lipgloss.NewStyle().Background(addSurface).Render("   ")+cancel)
-		rows = append(rows, "", addHintStyle.Render("←/→ choose · Enter confirm"))
+		rows = append(rows, "", addHintStyle.Render(ansi.Truncate("↑/↓ option · Space toggle · ←/→ action · Enter confirm", width, "…")))
 		return dialogRows(rows, width)
 	case dialogActions:
 		width := max(24, min(38, m.width-10))

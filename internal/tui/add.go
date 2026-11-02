@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,10 +63,7 @@ func (m model) previewAddSource() tea.Cmd {
 				result.text = "Invalid magnet link"
 				return result
 			}
-			result.text = "Size and files available after metadata loads"
-			if magnet.DisplayName != "" {
-				result.text = magnet.DisplayName + " · " + result.text
-			}
+			result.text = magnet.DisplayName
 			return result
 		}
 		path, err := localPath(source)
@@ -85,16 +81,7 @@ func (m model) previewAddSource() tea.Cmd {
 			result.text = "Invalid torrent file"
 			return result
 		}
-		var size int64
-		files := info.UpvertedFiles()
-		for _, file := range files {
-			size += file.Length
-		}
-		fileLabel := "files"
-		if len(files) == 1 {
-			fileLabel = "file"
-		}
-		result.text = fmt.Sprintf("%s · %s · %d %s", info.BestName(), formatBytes(size), len(files), fileLabel)
+		result.text = info.BestName()
 		return result
 	}
 }
@@ -364,21 +351,9 @@ func (m model) addDialogView() string {
 	}
 	rows = append(rows, option(addSequential, m.addForm.sequential, "Sequential download"), option(addPaused, m.addForm.paused, "Start paused"))
 
-	hint := ""
-	switch m.addForm.field {
-	case addPath:
-		hint = "Leave blank for default. ~/ paths supported."
-	case addSequential:
-		hint = "Prioritize the beginning for early playback."
-	case addPaused:
-		hint = "Review files before starting the download."
-	}
-	hintStyle := addHintStyle
 	if m.addForm.err != "" {
-		hint = m.addForm.err
-		hintStyle = errorStyle.Background(addSurface)
+		rows = append(rows, errorStyle.Background(addSurface).Render(ansi.Truncate(m.addForm.err, width, "…")))
 	}
-	rows = append(rows, hintStyle.Render(ansi.Truncate(hint, width, "…")))
 	gap()
 	button := "  Add torrent  "
 	buttonStyle := lipgloss.NewStyle().Foreground(addText).Background(addFocusSurface).Bold(true)

@@ -78,6 +78,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove
 				m.removeCancel = false
+				m.removeDeleteData = false
+				m.removeOption = false
 			}
 		case "shift+up":
 			command := m.moveSelected(-1)

@@ -232,7 +232,7 @@ func TestNextPriority(t *testing.T) {
 }
 
 func TestRemoveDialogCanSelectCancelWithArrows(t *testing.T) {
-	for _, arrow := range []tea.KeyType{tea.KeyLeft, tea.KeyRight, tea.KeyUp, tea.KeyDown} {
+	for _, arrow := range []tea.KeyType{tea.KeyLeft, tea.KeyRight} {
 		m := model{dialog: dialogRemove, selectedID: "one", torrents: []domain.TorrentSnapshot{{ID: "one"}}}
 		updated, _ := m.Update(tea.KeyMsg{Type: arrow})
 		m = updated.(model)
@@ -249,5 +249,33 @@ func TestRemoveDialogCanSelectCancelWithArrows(t *testing.T) {
 		if m.removeCancel || m.dialog != dialogRemove {
 			t.Fatal("reopened dialog did not reset selection")
 		}
+	}
+}
+
+func TestRemoveDialogDeleteFilesIsOptIn(t *testing.T) {
+	m := model{dialog: dialogRemove, selectedID: "one", torrents: []domain.TorrentSnapshot{{ID: "one"}}}
+	if m.removeDeleteData {
+		t.Fatal("delete data must default off")
+	}
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(model)
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = updated.(model)
+	if cmd != nil || !m.removeDeleteData || m.dialog != dialogRemove {
+		t.Fatal("checkbox did not toggle")
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m = updated.(model)
+	updated, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(model)
+	if cmd != nil || m.pending || m.dialog != dialogNone {
+		t.Fatal("cancel attempted deletion")
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDelete})
+	m = updated.(model)
+	if m.removeDeleteData || m.removeOption {
+		t.Fatal("delete choice persisted on reopen")
 	}
 }
