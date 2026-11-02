@@ -21,6 +21,7 @@ const (
 	MethodTorrentVerify          = "torrent.verify"
 	MethodTorrentFindPeers       = "torrent.find_peers"
 	MethodTorrentRemove          = "torrent.remove"
+	MethodTorrentSetSequential   = "torrent.set_sequential"
 	MethodTorrentSetFilePriority = "torrent.set_file_priority"
 )
 
@@ -100,4 +101,9 @@ type SetFilePriorityParams struct {
 }
 type TorrentResult struct {
 	Torrent model.TorrentSnapshot `json:"torrent"`
+}
+
+type SetSequentialParams struct {
+	ID      model.TorrentID `json:"id"`
+	Enabled bool            `json:"enabled"`
 }

@@ -13,6 +13,7 @@ type Engine interface {
 	Verify(context.Context, model.TorrentID) error
 	FindPeers(context.Context, model.TorrentID) error
 	Remove(context.Context, model.TorrentID, bool) error
+	SetSequential(context.Context, model.TorrentID, bool) error
 	SetFilePriority(context.Context, model.TorrentID, int, model.FilePriority) error
 	Snapshot(context.Context, model.TorrentID) (model.TorrentSnapshot, error)
 	Details(context.Context, model.TorrentID) (model.TorrentDetails, error)

@@ -227,3 +227,22 @@ func (d *Daemon) replaceSession(_ context.Context, session model.Session) error 
 func validFilePriority(priority model.FilePriority) bool {
 	return priority == model.FilePrioritySkip || priority == model.FilePriorityNormal || priority == model.FilePriorityHigh
 }
+
+func (d *Daemon) setSequential(ctx context.Context, params rpc.SetSequentialParams) (model.TorrentSnapshot, error) {
+	d.controlMu.Lock()
+	defer d.controlMu.Unlock()
+	t, err := d.torrents.get(ctx, params.ID)
+	if err != nil {
+		return model.TorrentSnapshot{}, err
+	}
+	if err = d.engine.SetSequential(ctx, params.ID, params.Enabled); err != nil {
+		return model.TorrentSnapshot{}, err
+	}
+	if err = d.updateRecord(context.WithoutCancel(ctx), params.ID, func(record *model.TorrentRecord) { record.Sequential = params.Enabled }); err != nil {
+		_ = d.engine.SetSequential(context.WithoutCancel(ctx), params.ID, t.Sequential)
+		return model.TorrentSnapshot{}, err
+	}
+	t.Sequential = params.Enabled
+	_ = d.torrents.put(context.WithoutCancel(ctx), t)
+	return t, nil
+}

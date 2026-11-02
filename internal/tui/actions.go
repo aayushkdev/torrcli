@@ -20,6 +20,7 @@ type daemonClient interface {
 	Resume(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	Verify(context.Context, rpc.TorrentParams) (rpc.TorrentResult, error)
 	FindPeers(context.Context, rpc.TorrentParams) error
+	SetSequential(context.Context, rpc.SetSequentialParams) (rpc.TorrentResult, error)
 	SetFilePriority(context.Context, rpc.SetFilePriorityParams) (rpc.TorrentResult, error)
 	Move(context.Context, rpc.MoveTorrentParams) (rpc.ListTorrentsResult, error)
 }
@@ -27,17 +28,16 @@ type daemonClient interface {
 type torrentAction string
 
 const (
-	actionToggle    torrentAction = "toggle"
-	actionVerify    torrentAction = "verify"
-	actionFindPeers torrentAction = "find peers"
-	actionRemove    torrentAction = "remove"
+	actionToggle     torrentAction = "toggle"
+	actionVerify     torrentAction = "verify"
+	actionFindPeers  torrentAction = "find peers"
+	actionSequential torrentAction = "sequential"
+	actionRemove     torrentAction = "remove"
 )
 
 func (m model) torrentActions() []torrentAction {
-	if index := m.selectedIndex(); index >= 0 && m.torrents[index].State == domain.TorrentStatePaused {
-		return []torrentAction{actionToggle, actionVerify, actionFindPeers, actionRemove}
-	}
-	return []torrentAction{actionToggle, actionVerify, actionFindPeers, actionRemove}
+
+	return []torrentAction{actionToggle, actionVerify, actionFindPeers, actionSequential, actionRemove}
 }
 
 func (m model) actionLabel(action torrentAction) string {
@@ -48,6 +48,11 @@ func (m model) actionLabel(action torrentAction) string {
 		return "Pause"
 	}
 	switch action {
+	case actionSequential:
+		if index := m.selectedIndex(); index >= 0 && m.torrents[index].Sequential {
+			return "Disable sequential download"
+		}
+		return "Enable sequential download"
 	case actionVerify:
 		return "Force recheck"
 	case actionFindPeers:
@@ -201,6 +206,9 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			switch action {
 			case actionToggle:
 				return m, m.toggleSelected()
+			case actionSequential:
+				command := m.toggleSequential()
+				return m, command
 			case actionVerify:
 				return m, m.verifySelected()
 			case actionFindPeers:
@@ -286,6 +294,12 @@ func (m *model) handleActionResult(message actionResultMsg) tea.Cmd {
 	case "pause", "resume":
 		m.replaceTorrent(message.torrent)
 		return m.setNotice(strings.ToUpper(message.action[:1])+message.action[1:], false)
+	case "sequential":
+		m.replaceTorrent(message.torrent)
+		if message.torrent.Sequential {
+			return m.setNotice("Sequential download enabled", false)
+		}
+		return m.setNotice("Sequential download disabled", false)
 	case "verify":
 		m.replaceTorrent(message.torrent)
 		return m.setNotice("Verification complete", false)
@@ -337,5 +351,20 @@ func (m *model) removeTorrent(id domain.TorrentID) {
 		m.torrents = append(m.torrents[:index], m.torrents[index+1:]...)
 		m.ensureSelection()
 		return
+	}
+}
+
+func (m *model) toggleSequential() tea.Cmd {
+	index := m.selectedIndex()
+	if m.pending || index < 0 {
+		return nil
+	}
+	t := m.torrents[index]
+	m.pending = true
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(m.ctx, 2*time.Second)
+		defer cancel()
+		result, err := m.daemon.SetSequential(ctx, rpc.SetSequentialParams{ID: t.ID, Enabled: !t.Sequential})
+		return actionResultMsg{action: "sequential", torrent: result.Torrent, err: err}
 	}
 }

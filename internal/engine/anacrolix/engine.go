@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"strings"
@@ -31,6 +32,9 @@ type torrentEntry struct {
 	savePath         string
 	metaInfo         *metainfo.MetaInfo
 	addedAt          time.Time
+	filePriorities   map[int]model.FilePriority
+	sequential       bool
+	boosted          map[int]torrent.PiecePriority
 	paused           bool
 	lastDownload     int64
 	lastUpload       int64
@@ -41,7 +45,7 @@ type torrentEntry struct {
 
 func New() (*Engine, error) {
 	config := torrent.NewDefaultClientConfig()
-	config.DefaultStorage = storage.NewFileOpts(storage.NewFileClientOpts{})
+	config.DefaultStorage = storage.NewFileOpts(storage.NewFileClientOpts{PieceCompletion: storage.NewMapPieceCompletion()})
 	client, err := torrent.NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("create torrent client: %w", err)
@@ -68,7 +72,7 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 	if err != nil {
 		return "", false, err
 	}
-	store := storage.NewFileOpts(storage.NewFileClientOpts{ClientBaseDir: input.SavePath})
+	store := newFileStorage(input.SavePath)
 	spec.Storage = store
 
 	e.mu.Lock()
@@ -84,20 +88,28 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 		_ = store.Close()
 		return id, false, nil
 	}
+	e.torrents[id] = torrentEntry{torrent: added, storage: store, savePath: input.SavePath, metaInfo: metaInfo, addedAt: time.Now(), sequential: input.Sequential, filePriorities: maps.Clone(input.FilePriorities)}
 	go func() {
 		select {
 		case <-added.GotInfo():
-			added.DownloadAll()
-			for index, priority := range input.FilePriorities {
-				files := added.Files()
-				if index >= 0 && index < len(files) {
-					files[index].SetPriority(piecePriority(priority))
-				}
+			e.mu.Lock()
+			defer e.mu.Unlock()
+			entry, ok := e.torrents[id]
+			if !ok || entry.torrent != added {
+				return
 			}
-		case <-e.client.Closed():
+			for index, file := range added.Files() {
+				priority := model.FilePriorityNormal
+				if saved, ok := entry.filePriorities[index]; ok {
+					priority = saved
+				}
+				file.SetPriority(piecePriority(priority))
+			}
+			updateSequential(&entry)
+			e.torrents[id] = entry
+		case <-added.Closed():
 		}
 	}()
-	e.torrents[id] = torrentEntry{torrent: added, storage: store, savePath: input.SavePath, metaInfo: metaInfo, addedAt: time.Now()}
 	return id, true, nil
 }
 
@@ -237,6 +249,12 @@ func (e *Engine) SetFilePriority(ctx context.Context, id model.TorrentID, fileIn
 		return fmt.Errorf("file %d not found in torrent %q", fileIndex, id)
 	}
 	files[fileIndex].SetPriority(piecePriority(priority))
+	if entry.filePriorities == nil {
+		entry.filePriorities = make(map[int]model.FilePriority)
+	}
+	entry.filePriorities[fileIndex] = priority
+	updateSequential(&entry)
+	e.torrents[id] = entry
 	return nil
 }
 
@@ -293,6 +311,7 @@ func (e *Engine) Details(ctx context.Context, id model.TorrentID) (model.Torrent
 }
 
 func (e *Engine) snapshotLocked(id model.TorrentID, entry torrentEntry) model.TorrentSnapshot {
+	updateSequential(&entry)
 	now := time.Now()
 	stats := entry.torrent.Stats()
 	downloaded := stats.BytesReadUsefulData.Int64()
@@ -405,6 +424,7 @@ func snapshot(id model.TorrentID, entry torrentEntry, downloadRate, uploadRate i
 	}
 	return model.TorrentSnapshot{
 		ID:             id,
+		Sequential:     entry.sequential,
 		Name:           torrent.Name(),
 		State:          state,
 		Progress:       progress,

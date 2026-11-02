@@ -129,3 +129,7 @@ func (c *Client) call(ctx context.Context, method string, params any, result any
 	}
 	return nil
 }
+
+func (c *Client) SetSequential(ctx context.Context, params rpc.SetSequentialParams) (rpc.TorrentResult, error) {
+	return c.torrentCall(ctx, rpc.MethodTorrentSetSequential, params)
+}

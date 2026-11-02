@@ -21,4 +21,5 @@ torrcli resume ID
 torrcli remove ID
 torrcli remove ID --delete-data
 torrcli priority ID FILE_INDEX skip|normal|high
+torrcli sequential ID on|off
 ```

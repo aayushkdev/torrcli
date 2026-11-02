@@ -156,3 +156,5 @@ func waitForSocket(t *testing.T, socketPath string, runResult <-chan error) net.
 	t.Fatalf("daemon socket %q did not become ready", socketPath)
 	return nil
 }
+
+func (fakeEngine) SetSequential(context.Context, model.TorrentID, bool) error { return nil }

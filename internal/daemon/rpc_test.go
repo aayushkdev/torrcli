@@ -75,6 +75,7 @@ func TestDaemonRestoresSession(t *testing.T) {
 		Order: []model.TorrentID{"torrent-a"},
 		Torrents: map[model.TorrentID]model.TorrentRecord{
 			"torrent-a": {
+				Sequential:   true,
 				Source:       "magnet:?xt=urn:btih:abc",
 				Name:         "saved",
 				SavePath:     "/downloads",
@@ -89,6 +90,9 @@ func TestDaemonRestoresSession(t *testing.T) {
 
 	if torrentEngine.input.Source != "magnet:?xt=urn:btih:abc" || torrentEngine.input.SavePath != "/downloads" {
 		t.Fatalf("engine input = %#v", torrentEngine.input)
+	}
+	if !torrentEngine.input.Sequential {
+		t.Fatal("sequential mode was not restored")
 	}
 	if torrentEngine.pausedID != "torrent-a" {
 		t.Fatalf("paused ID = %q", torrentEngine.pausedID)
@@ -204,3 +208,44 @@ func (e *recordingEngine) Details(context.Context, model.TorrentID) (model.Torre
 func (e *recordingEngine) Events() <-chan model.EngineEvent { return nil }
 
 func (e *recordingEngine) Close() error { return nil }
+
+func (e *recordingEngine) SetSequential(_ context.Context, _ model.TorrentID, enabled bool) error {
+	e.snapshot.Sequential = enabled
+	return nil
+}
+
+func TestSequentialModePersistsAndRollsBackOnSaveFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	torrentEngine := &recordingEngine{snapshot: model.TorrentSnapshot{ID: "one"}}
+	d := New(platform.Paths{SessionFile: filepath.Join(t.TempDir(), "session.json")}, nil)
+	d.engine = torrentEngine
+	d.session = model.Session{Order: []model.TorrentID{"one"}, Torrents: map[model.TorrentID]model.TorrentRecord{"one": {Source: "movie.torrent", SavePath: "/downloads", DesiredState: model.TorrentStateDownloading}}}
+	d.torrents = newTorrentSession(ctx)
+	if err := d.torrents.put(ctx, torrentEngine.snapshot); err != nil {
+		t.Fatal(err)
+	}
+	params, _ := json.Marshal(rpc.SetSequentialParams{ID: "one", Enabled: true})
+	result, rpcErr := d.handleRPC(ctx, rpc.Request{Method: rpc.MethodTorrentSetSequential, Params: params})
+	if rpcErr != nil {
+		t.Fatal(rpcErr)
+	}
+	if !result.(rpc.TorrentResult).Torrent.Sequential {
+		t.Fatal("response missing sequential state")
+	}
+	saved, err := state.LoadOrCreateSession(d.paths.SessionFile)
+	if err != nil || !saved.Torrents["one"].Sequential {
+		t.Fatalf("saved state: %v, %v", saved, err)
+	}
+	blocked := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(blocked, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	d.paths.SessionFile = filepath.Join(blocked, "session.json")
+	if _, err := d.setSequential(ctx, rpc.SetSequentialParams{ID: "one", Enabled: false}); err == nil {
+		t.Fatal("expected save failure")
+	}
+	if !torrentEngine.snapshot.Sequential || !d.session.Torrents["one"].Sequential {
+		t.Fatal("failed save changed sequential mode")
+	}
+}

@@ -122,6 +122,16 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 			return nil, d.operationError("remove", err)
 		}
 		return struct{}{}, nil
+	case rpc.MethodTorrentSetSequential:
+		var p rpc.SetSequentialParams
+		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" {
+			return nil, rpc.InvalidParams()
+		}
+		t, err := d.setSequential(ctx, p)
+		if err != nil {
+			return nil, d.operationError("set sequential download", err)
+		}
+		return rpc.TorrentResult{Torrent: t}, nil
 	case rpc.MethodTorrentSetFilePriority:
 		var p rpc.SetFilePriorityParams
 		if json.Unmarshal(request.Params, &p) != nil || p.ID == "" || p.FileIndex < 0 || !validFilePriority(p.Priority) {

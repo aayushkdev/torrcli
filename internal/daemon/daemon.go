@@ -165,7 +165,7 @@ func (d *Daemon) restoreSession(ctx context.Context) {
 			State:   model.TorrentStateError,
 			AddedAt: record.AddedAt,
 		}
-		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Source: record.Source, SavePath: record.SavePath, FilePriorities: filePriorities(record.FilePriorities)})
+		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Sequential: record.Sequential, Source: record.Source, SavePath: record.SavePath, FilePriorities: filePriorities(record.FilePriorities)})
 		if err == nil && restoredID != id {
 			err = fmt.Errorf("restored torrent ID %q does not match session ID %q", restoredID, id)
 		}

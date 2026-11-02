@@ -27,6 +27,7 @@ const (
 type AddInput struct {
 	Source         string
 	SavePath       string
+	Sequential     bool
 	FilePriorities map[int]FilePriority
 }
 
@@ -41,6 +42,7 @@ type TorrentSnapshot struct {
 	ConnectedPeers int
 	Seeders        int
 	Leechers       int
+	Sequential     bool
 	AddedAt        time.Time
 	Error          string
 }

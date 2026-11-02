@@ -30,6 +30,7 @@ type TorrentRecord struct {
 	SavePath       string                  `json:"save_path"`
 	DesiredState   TorrentState            `json:"desired_state"`
 	AddedAt        time.Time               `json:"added_at"`
+	Sequential     bool                    `json:"sequential,omitempty"`
 	FilePriorities map[string]FilePriority `json:"file_priorities,omitempty"`
 }
 
