@@ -12,6 +12,7 @@ import (
 )
 
 type daemonClient interface {
+	Info(context.Context) (rpc.DaemonInfo, error)
 	Add(context.Context, rpc.AddTorrentParams) (rpc.AddTorrentResult, error)
 	List(context.Context) (rpc.ListTorrentsResult, error)
 	Details(context.Context, rpc.TorrentParams) (rpc.TorrentDetailsResult, error)
@@ -187,8 +188,11 @@ func (m *model) toggleSelected() tea.Cmd {
 }
 
 func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.dialog == dialogAdd {
+		return m.updateAddDialog(key)
+	}
 	switch key.Type {
-	case tea.KeyEsc:
+	case tea.KeyEsc, tea.KeyCtrlC:
 		m.dialog = dialogNone
 		m.input = ""
 	case tea.KeyEnter:
@@ -215,34 +219,23 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, m.findPeersSelected()
 			case actionRemove:
 				m.dialog = dialogRemove
+				m.removeCancel = false
 			}
 			return m, nil
-		case dialogAdd:
-			source := strings.TrimSpace(m.input)
-			if source == "" {
-				return m, nil
-			}
-			m.dialog = dialogNone
-			m.input = ""
-			command := m.addTorrent(source)
-			return m, command
 		case dialogRemove:
 			m.dialog = dialogNone
+			if m.removeCancel {
+				return m, nil
+			}
 			command := m.removeSelected()
 			return m, command
 		}
-	case tea.KeyBackspace:
-		if m.dialog == dialogAdd && len(m.input) > 0 {
-			runes := []rune(m.input)
-			m.input = string(runes[:len(runes)-1])
-		}
-	case tea.KeyRunes:
-		if m.dialog == dialogAdd {
-			m.input += string(key.Runes)
-		}
-	case tea.KeySpace:
-		if m.dialog == dialogAdd {
-			m.input += " "
+	}
+
+	if m.dialog == dialogRemove {
+		switch key.Type {
+		case tea.KeyLeft, tea.KeyRight, tea.KeyUp, tea.KeyDown, tea.KeyTab, tea.KeyShiftTab:
+			m.removeCancel = !m.removeCancel
 		}
 	}
 	if m.dialog == dialogActions {
@@ -256,14 +249,14 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *model) addTorrent(source string) tea.Cmd {
+func (m *model) addTorrent(params rpc.AddTorrentParams) tea.Cmd {
 	m.pending = true
 	m.notice = "Adding torrent…"
 	m.noticeErr = false
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
 		defer cancel()
-		result, err := m.daemon.Add(ctx, rpc.AddTorrentParams{Source: source})
+		result, err := m.daemon.Add(ctx, params)
 		return actionResultMsg{torrent: result.Torrent, action: "add", err: err}
 	}
 }
@@ -288,6 +281,9 @@ func (m *model) removeSelected() tea.Cmd {
 func (m *model) handleActionResult(message actionResultMsg) tea.Cmd {
 	m.pending = false
 	if message.err != nil {
+		if message.action == "add" {
+			m.addForm.err = message.err.Error()
+		}
 		return m.setNotice("Could not "+message.action+": "+message.err.Error(), true)
 	}
 	switch message.action {
@@ -306,6 +302,8 @@ func (m *model) handleActionResult(message actionResultMsg) tea.Cmd {
 	case "find peers":
 		return m.setNotice("Searching DHT for peers", false)
 	case "add":
+		m.dialog = dialogNone
+		m.input = ""
 		m.upsertTorrent(message.torrent)
 		m.ensureSelection()
 		return m.setNotice("Added "+message.torrent.Name, false)

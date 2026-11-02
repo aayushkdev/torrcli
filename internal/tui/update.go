@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +17,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.dialog != dialogNone {
 			return m.updateDialog(message)
+		}
+		if message.Type == tea.KeyCtrlC {
+			return m, tea.Quit
 		}
 		if message.String() == "tab" {
 			if m.focus == focusTorrents && m.selectedIndex() >= 0 {
@@ -63,11 +67,17 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.actionIndex = 0
 			}
 		case "a":
+			if m.pending {
+				return m, nil
+			}
+			m.addForm = addForm{}
 			m.dialog = dialogAdd
 			m.input = ""
+			return m, m.loadAddDefaults()
 		case "delete":
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove
+				m.removeCancel = false
 			}
 		case "shift+up":
 			command := m.moveSelected(-1)
@@ -75,6 +85,14 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "shift+down":
 			command := m.moveSelected(1)
 			return m, command
+		}
+	case addDefaultsMsg:
+		if m.dialog == dialogAdd {
+			m.addForm.defaultPath = message.path
+		}
+	case addPreviewMsg:
+		if m.dialog == dialogAdd && message.source == strings.TrimSpace(m.input) {
+			m.addForm.preview = message.text
 		}
 	case tea.WindowSizeMsg:
 		m.width = message.Width

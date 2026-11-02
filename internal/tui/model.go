@@ -38,7 +38,9 @@ type model struct {
 	noticeID       int
 	dialog         dialogMode
 	input          string
+	addForm        addForm
 	actionIndex    int
+	removeCancel   bool
 	details        domain.TorrentDetails
 	showDetails    bool
 	detailsLoading bool

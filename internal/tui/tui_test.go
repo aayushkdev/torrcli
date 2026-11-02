@@ -43,7 +43,7 @@ func TestModelListsTorrents(t *testing.T) {
 	m := model{ctx: context.Background(), width: 100, torrents: []domain.TorrentSnapshot{{ID: "one", Name: "example.iso", State: domain.TorrentStateDownloading, Progress: 0.5, DownloadRate: 1536, ConnectedPeers: 2, Seeders: 1, Leechers: 1}}}
 	m.ensureSelection()
 	view := m.View()
-	for _, value := range []string{"example.iso", "downloading", "50.0%", "1.5 KiB/s", "2 (1s/1l)", "Connected to torrd", "[a] add  [tab] change pane  [q] quit"} {
+	for _, value := range []string{"example.iso", "downloading", "50.0%", "1.5 KiB/s", "2 (1s/1l)", "[a] add  [tab] change pane  [q] quit"} {
 		if !strings.Contains(view, value) {
 			t.Errorf("view does not contain %q: %s", value, view)
 		}
@@ -228,5 +228,26 @@ func TestNextPriority(t *testing.T) {
 	}
 	if actual := nextPriority(domain.FilePriorityHigh); actual != domain.FilePrioritySkip {
 		t.Fatalf("high next = %q", actual)
+	}
+}
+
+func TestRemoveDialogCanSelectCancelWithArrows(t *testing.T) {
+	for _, arrow := range []tea.KeyType{tea.KeyLeft, tea.KeyRight, tea.KeyUp, tea.KeyDown} {
+		m := model{dialog: dialogRemove, selectedID: "one", torrents: []domain.TorrentSnapshot{{ID: "one"}}}
+		updated, _ := m.Update(tea.KeyMsg{Type: arrow})
+		m = updated.(model)
+		if !m.removeCancel {
+			t.Fatal("arrow did not select cancel")
+		}
+		updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m = updated.(model)
+		if cmd != nil || m.pending || m.dialog != dialogNone {
+			t.Fatal("confirming cancel attempted removal")
+		}
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDelete})
+		m = updated.(model)
+		if m.removeCancel || m.dialog != dialogRemove {
+			t.Fatal("reopened dialog did not reset selection")
+		}
 	}
 }

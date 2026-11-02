@@ -29,12 +29,16 @@ func (m model) View() string {
 		rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
 		help = "[a] add  [tab] change pane  [q] quit"
 	}
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render(help))
+	rows = append(rows, separatorStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render(help))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen
 	}
-	return overlay(screen, dialogStyle.Render(m.dialogView()), m.width, m.height)
+	style := dialogStyle
+	if m.dialog == dialogAdd {
+		style = addDialogStyle
+	}
+	return overlay(screen, style.Render(m.dialogView()), m.width, m.height)
 }
 
 func overlay(background, foreground string, width, height int) string {
@@ -130,12 +134,12 @@ func (m model) paneDivider(name string, active bool) string {
 	if active {
 		label = focusStyle.Render("▸" + name)
 	}
-	return label + mutedStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
+	return label + separatorStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
 }
 
 func (m model) sectionDivider(name string) string {
 	label := headerStyle.Render(name)
-	return label + mutedStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
+	return label + separatorStyle.Render(strings.Repeat("─", max(0, m.width-lipgloss.Width(label))))
 }
 
 func (m model) detailsTabs() string {
@@ -183,7 +187,7 @@ func (m model) detailsView() string {
 	rows := []string{
 		titleStyle.Render(torrent.Name),
 		mutedStyle.Render("ID " + string(torrent.ID)),
-		mutedStyle.Render(strings.Repeat("─", m.width)),
+		separatorStyle.Render(strings.Repeat("─", m.width)),
 		fmt.Sprintf("%s  %.1f%%  ↓%s  ↑%s  %d peers", torrent.State, torrent.Progress*100, formatRate(torrent.DownloadRate), formatRate(torrent.UploadRate), torrent.ConnectedPeers),
 		"",
 		headerStyle.Render("  FILE                                      PROGRESS       SIZE       PRIORITY"),
@@ -210,7 +214,7 @@ func (m model) detailsView() string {
 	for len(rows) < max(0, m.height-2) {
 		rows = append(rows, "")
 	}
-	rows = append(rows, mutedStyle.Render(strings.Repeat("─", m.width)), mutedStyle.Render("↑/k up  ↓/j down  space change priority  esc back"))
+	rows = append(rows, separatorStyle.Render(strings.Repeat("─", m.width)), mutedStyle.Render("↑/k up  ↓/j down  space change priority  esc back"))
 	return strings.Join(rows, "\n")
 }
 
@@ -222,13 +226,7 @@ func (m model) detailsStart(visible int) int {
 }
 
 func (m model) header() string {
-	title := titleStyle.Render("torrcli")
-	if m.width < 70 {
-		return title
-	}
-	status := mutedStyle.Render("Connected to torrd")
-	space := max(1, m.width-lipgloss.Width(title)-lipgloss.Width(status))
-	return title + strings.Repeat(" ", space) + status
+	return titleStyle.Render("torrcli")
 }
 
 func (m model) status() string {
@@ -247,41 +245,53 @@ func (m model) status() string {
 func (m model) dialogView() string {
 	switch m.dialog {
 	case dialogAdd:
-		inputWidth := max(20, min(72, m.width-12))
-		return lipgloss.JoinVertical(lipgloss.Left,
-			titleStyle.Render("Add torrent"),
-			mutedStyle.Render("Paste a magnet link or .torrent path"),
-			"> "+truncate(m.input, inputWidth)+"█",
-			mutedStyle.Render("enter add  esc cancel"),
-		)
+		return m.addDialogView()
 	case dialogRemove:
 		name := "selected torrent"
 		if index := m.selectedIndex(); index >= 0 {
 			name = m.torrents[index].Name
 		}
-		return lipgloss.JoinVertical(lipgloss.Left,
-			titleStyle.Render("Remove torrent?"),
-			truncate(name, max(20, min(72, m.width-12))),
-			mutedStyle.Render("enter confirm  esc cancel"),
-		)
+		width := max(24, min(64, m.width-10))
+		nameLines := strings.Split(ansi.Wrap(name, width, ""), "\n")
+		if len(nameLines) > 2 {
+			nameLines = []string{nameLines[0], ansi.Truncate(nameLines[1], width-1, "") + "…"}
+		}
+		rows := []string{dialogTitleStyle.Render("Remove torrent?"), ""}
+		for _, line := range nameLines {
+			rows = append(rows, lipgloss.NewStyle().Foreground(addText).Background(addSurface).Render(line))
+		}
+		rows = append(rows, "", addHintStyle.Render("Downloaded files will be kept."), "")
+		removeKey, cancelKey := dialogKeyStyle, dialogKeyStyle
+		if m.removeCancel {
+			cancelKey = cancelKey.Foreground(addInputSurface).Background(addAccent)
+		} else {
+			removeKey = removeKey.Foreground(addInputSurface).Background(dangerColor)
+		}
+		remove := removeKey.Render(" Enter ") + addHintStyle.Render(" Remove")
+		cancel := cancelKey.Render(" Esc ") + addHintStyle.Render(" cancel")
+		rows = append(rows, remove+lipgloss.NewStyle().Background(addSurface).Render("   ")+cancel)
+		rows = append(rows, "", addHintStyle.Render("←/→ choose · Enter confirm"))
+		return dialogRows(rows, width)
 	case dialogActions:
-		rows := []string{titleStyle.Render("Torrent actions")}
+		width := max(24, min(38, m.width-10))
+		rows := []string{dialogTitleStyle.Render("Torrent actions"), ""}
 		for index, action := range m.torrentActions() {
-			label := "  " + m.actionLabel(action)
+			text := "  " + m.actionLabel(action)
+			style := lipgloss.NewStyle().Foreground(addText).Background(addSurface).Width(width)
 			if !m.actionEnabled(action) {
-				label = mutedStyle.Render(label)
+				style = style.Foreground(addSecondary)
 			}
 			if index == m.actionIndex {
+				text = "> " + m.actionLabel(action)
+				style = style.Background(addFocusSurface)
 				if m.actionEnabled(action) {
-					label = selectedStyle.Render("> " + m.actionLabel(action))
-				} else {
-					label = mutedStyle.Render("> " + m.actionLabel(action))
+					style = style.Foreground(addAccent).Bold(true)
 				}
 			}
-			rows = append(rows, label)
+			rows = append(rows, style.Render(ansi.Truncate(text, width, "…")))
 		}
-		rows = append(rows, mutedStyle.Render("enter select  esc cancel"))
-		return lipgloss.JoinVertical(lipgloss.Left, rows...)
+		rows = append(rows, "", dialogKeyStyle.Render("Enter")+addHintStyle.Render(" select   ")+dialogKeyStyle.Render("Esc")+addHintStyle.Render(" cancel"))
+		return dialogRows(rows, width)
 	default:
 		return ""
 	}
@@ -441,4 +451,12 @@ func truncate(value string, width int) string {
 		return value[:width]
 	}
 	return value[:width-3] + "..."
+}
+
+func dialogRows(rows []string, width int) string {
+	surface := lipgloss.NewStyle().Background(addSurface)
+	for i, row := range rows {
+		rows[i] = row + surface.Render(strings.Repeat(" ", max(0, width-lipgloss.Width(row))))
+	}
+	return strings.Join(rows, "\n")
 }
