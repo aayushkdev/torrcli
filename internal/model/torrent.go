@@ -25,6 +25,7 @@ const (
 )
 
 type AddInput struct {
+	Paused         bool
 	Source         string
 	SavePath       string
 	Sequential     bool

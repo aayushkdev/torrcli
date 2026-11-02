@@ -165,7 +165,7 @@ func (d *Daemon) restoreSession(ctx context.Context) {
 			State:   model.TorrentStateError,
 			AddedAt: record.AddedAt,
 		}
-		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Sequential: record.Sequential, Source: record.Source, SavePath: record.SavePath, FilePriorities: filePriorities(record.FilePriorities)})
+		restoredID, _, err := d.engine.Add(ctx, model.AddInput{Paused: record.DesiredState == model.TorrentStatePaused, Sequential: record.Sequential, Source: record.Source, SavePath: record.SavePath, FilePriorities: filePriorities(record.FilePriorities)})
 		if err == nil && restoredID != id {
 			err = fmt.Errorf("restored torrent ID %q does not match session ID %q", restoredID, id)
 		}
@@ -210,7 +210,11 @@ func (d *Daemon) recordTorrent(id model.TorrentID, params rpc.AddTorrentParams, 
 	record.Source = params.Source
 	record.Name = torrent.Name
 	record.SavePath = params.SavePath
+	record.Sequential = params.Sequential
 	record.DesiredState = model.TorrentStateDownloading
+	if params.Paused {
+		record.DesiredState = model.TorrentStatePaused
+	}
 	record.AddedAt = torrent.AddedAt
 	session.Torrents[id] = record
 	if err := state.SaveSession(d.paths.SessionFile, session); err != nil {

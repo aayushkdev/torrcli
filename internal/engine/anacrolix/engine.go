@@ -74,6 +74,8 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 	}
 	store := newFileStorage(input.SavePath)
 	spec.Storage = store
+	spec.DisallowDataDownload = input.Paused
+	spec.DisallowDataUpload = input.Paused
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -88,7 +90,7 @@ func (e *Engine) Add(ctx context.Context, input model.AddInput) (model.TorrentID
 		_ = store.Close()
 		return id, false, nil
 	}
-	e.torrents[id] = torrentEntry{torrent: added, storage: store, savePath: input.SavePath, metaInfo: metaInfo, addedAt: time.Now(), sequential: input.Sequential, filePriorities: maps.Clone(input.FilePriorities)}
+	e.torrents[id] = torrentEntry{torrent: added, storage: store, savePath: input.SavePath, metaInfo: metaInfo, addedAt: time.Now(), paused: input.Paused, sequential: input.Sequential, filePriorities: maps.Clone(input.FilePriorities)}
 	go func() {
 		select {
 		case <-added.GotInfo():

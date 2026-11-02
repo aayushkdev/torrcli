@@ -14,7 +14,7 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 	case rpc.MethodDaemonPing:
 		return rpc.PingResult{ProtocolVersion: rpc.Version}, nil
 	case rpc.MethodDaemonInfo:
-		return rpc.DaemonInfo{DaemonVersion: Version, ProtocolVersion: rpc.Version, StartedAt: d.started, ConfigFile: d.paths.ConfigFile, SessionFile: d.paths.SessionFile, SocketPath: d.paths.SocketPath}, nil
+		return rpc.DaemonInfo{DownloadDirectory: d.config.DownloadDirectory, DaemonVersion: Version, ProtocolVersion: rpc.Version, StartedAt: d.started, ConfigFile: d.paths.ConfigFile, SessionFile: d.paths.SessionFile, SocketPath: d.paths.SocketPath}, nil
 	case rpc.MethodTorrentAdd:
 		d.controlMu.Lock()
 		defer d.controlMu.Unlock()
@@ -25,7 +25,7 @@ func (d *Daemon) handleRPC(ctx context.Context, request rpc.Request) (any, *rpc.
 		if p.SavePath == "" {
 			p.SavePath = d.config.DownloadDirectory
 		}
-		id, created, err := d.engine.Add(ctx, model.AddInput{Source: p.Source, SavePath: p.SavePath})
+		id, created, err := d.engine.Add(ctx, model.AddInput{Source: p.Source, SavePath: p.SavePath, Sequential: p.Sequential, Paused: p.Paused})
 		if err != nil {
 			return nil, d.operationError("add", err)
 		}

@@ -58,17 +58,20 @@ type PingResult struct {
 }
 
 type DaemonInfo struct {
-	DaemonVersion   string    `json:"daemon_version"`
-	ProtocolVersion string    `json:"protocol_version"`
-	StartedAt       time.Time `json:"started_at"`
-	ConfigFile      string    `json:"config_file"`
-	SessionFile     string    `json:"session_file"`
-	SocketPath      string    `json:"socket_path"`
+	DownloadDirectory string    `json:"download_directory"`
+	DaemonVersion     string    `json:"daemon_version"`
+	ProtocolVersion   string    `json:"protocol_version"`
+	StartedAt         time.Time `json:"started_at"`
+	ConfigFile        string    `json:"config_file"`
+	SessionFile       string    `json:"session_file"`
+	SocketPath        string    `json:"socket_path"`
 }
 
 type AddTorrentParams struct {
-	Source   string `json:"source"`
-	SavePath string `json:"save_path"`
+	Sequential bool   `json:"sequential,omitempty"`
+	Paused     bool   `json:"paused,omitempty"`
+	Source     string `json:"source"`
+	SavePath   string `json:"save_path"`
 }
 
 type AddTorrentResult struct {

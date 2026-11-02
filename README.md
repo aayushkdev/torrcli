@@ -14,7 +14,7 @@ Current commands:
 
 ```text
 torrcli status
-torrcli add SOURCE --save-path PATH
+torrcli add SOURCE --save-path PATH [--sequential] [--paused]
 torrcli list
 torrcli pause ID
 torrcli resume ID
