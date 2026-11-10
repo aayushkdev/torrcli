@@ -23,13 +23,11 @@ func (m model) View() string {
 	for len(rows) < m.mainTableHeight() {
 		rows = append(rows, "")
 	}
-	help := "[a] add  [q] quit"
 	if m.selectedIndex() >= 0 {
 		rows = append(rows, m.paneDivider(" Details ", m.focus == focusDetails))
 		rows = append(rows, strings.Split(m.detailsPanel(m.detailsPaneHeight()), "\n")...)
-		help = "[a] add  [tab] change pane  [q] quit"
 	}
-	rows = append(rows, separatorStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render(help))
+	rows = append(rows, separatorStyle.Render(strings.Repeat("─", m.width)), m.status(), mutedStyle.Render(m.contextHelp()))
 	screen := strings.Join(rows, "\n")
 	if m.dialog == dialogNone {
 		return screen
@@ -121,7 +119,7 @@ func (m model) detailsPanel(height int) string {
 		row := fmt.Sprintf("  %-*s %s %s %s", nameWidth, truncate(file.Path, nameWidth), centerText(fmt.Sprintf("%.1f%%", progress), 9), centerText(formatBytes(file.Length), 10), centerText(string(file.Priority), 8))
 		if start+index == m.selectedFile {
 			row = ">" + row[1:]
-			rows = append(rows, selectedStyle.Width(m.width).Render(row))
+			rows = append(rows, m.selectionStyle(focusDetails).Width(m.width).Render(row))
 			continue
 		}
 		rows = append(rows, row)
@@ -244,6 +242,18 @@ func (m model) status() string {
 
 func (m model) dialogView() string {
 	switch m.dialog {
+	case dialogHelp:
+		width := max(24, min(62, m.width-10))
+		rows := []string{dialogTitleStyle.Render("Keyboard help"), "",
+			"a add · q quit · Tab pane", "? help · Esc close dialog", "",
+			"Torrent list", "↑/↓ or j/k select", "Space pause/resume", "Enter actions · Delete remove",
+			"Shift+↑/↓ reorder",
+			"Details", "←/→ switch Overview / Content", "↑/↓ files · Space priority", "",
+			"Add torrent", "↑/↓ or Tab/Shift+Tab move", "Enter: go to Add / confirm", "Space toggle · Esc cancel"}
+		for i, row := range rows {
+			rows[i] = ansi.Truncate(row, width, "…")
+		}
+		return dialogRows(rows, width)
 	case dialogAdd:
 		return m.addDialogView()
 	case dialogRemove:
@@ -341,7 +351,7 @@ func (m model) tableRows() []string {
 		row := m.torrentRow(torrent, nameWidth)
 		if torrent.ID == m.selectedID {
 			row = ">" + row[1:]
-			rows = append(rows, selectedStyle.Width(m.width).Render(row))
+			rows = append(rows, m.selectionStyle(focusTorrents).Width(m.width).Render(row))
 			continue
 		}
 		rows = append(rows, row)
@@ -469,4 +479,39 @@ func dialogRows(rows []string, width int) string {
 		rows[i] = row + surface.Render(strings.Repeat(" ", max(0, width-lipgloss.Width(row))))
 	}
 	return strings.Join(rows, "\n")
+}
+
+func (m model) contextHelp() string {
+	global := "a add · q quit · ? help"
+	context := ""
+	compact := ""
+	if m.selectedIndex() >= 0 {
+		context = "↑↓ select · Space pause/resume · Enter actions · Tab pane"
+		compact = "Enter actions · Tab pane"
+		if m.focus == focusDetails {
+			context = "←→ tabs · Tab pane"
+			compact = context
+			if m.detailsTab == 1 {
+				context = "←→ tabs · ↑↓ files · Space priority · Tab pane"
+				compact = "Space priority · Tab pane"
+			}
+		}
+	}
+	for _, hint := range []string{context, compact, "Tab pane", ""} {
+		text := global
+		if hint != "" {
+			text = hint + " · " + global
+		}
+		if lipgloss.Width(text) <= m.width {
+			return text
+		}
+	}
+	return ansi.Truncate(global, m.width, "…")
+}
+
+func (m model) selectionStyle(pane focus) lipgloss.Style {
+	if m.focus == pane && m.dialog == dialogNone {
+		return selectedStyle.Bold(true).Foreground(addAccent)
+	}
+	return selectedStyle
 }

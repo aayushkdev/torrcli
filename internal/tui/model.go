@@ -21,6 +21,7 @@ const (
 	dialogAdd
 	dialogRemove
 	dialogActions
+	dialogHelp
 )
 
 type model struct {

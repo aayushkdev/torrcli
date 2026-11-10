@@ -21,6 +21,21 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if message.Type == tea.KeyCtrlC {
 			return m, tea.Quit
 		}
+		switch message.String() {
+		case "q":
+			return m, tea.Quit
+		case "?":
+			m.dialog = dialogHelp
+			return m, nil
+		case "a":
+			if m.pending {
+				return m, nil
+			}
+			m.addForm = addForm{}
+			m.dialog = dialogAdd
+			m.input = ""
+			return m, m.loadAddDefaults()
+		}
 		if message.String() == "tab" {
 			if m.focus == focusTorrents && m.selectedIndex() >= 0 {
 				m.focus = focusDetails
@@ -50,8 +65,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch message.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
 		case "up", "k":
 			m.selectPrevious()
 			return m, m.loadDetails()
@@ -66,14 +79,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.dialog = dialogActions
 				m.actionIndex = 0
 			}
-		case "a":
-			if m.pending {
-				return m, nil
-			}
-			m.addForm = addForm{}
-			m.dialog = dialogAdd
-			m.input = ""
-			return m, m.loadAddDefaults()
 		case "delete":
 			if m.selectedIndex() >= 0 && !m.pending {
 				m.dialog = dialogRemove

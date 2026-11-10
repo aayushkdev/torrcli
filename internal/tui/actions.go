@@ -191,6 +191,15 @@ func (m model) updateDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.dialog == dialogAdd {
 		return m.updateAddDialog(key)
 	}
+	if m.dialog == dialogHelp {
+		if key.Type == tea.KeyEsc || key.Type == tea.KeyEnter || key.String() == "?" {
+			m.dialog = dialogNone
+		}
+		if key.Type == tea.KeyCtrlC || key.String() == "q" {
+			return m, tea.Quit
+		}
+		return m, nil
+	}
 	switch key.Type {
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.dialog = dialogNone

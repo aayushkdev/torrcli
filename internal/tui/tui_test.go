@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	domain "github.com/aayush/torrcli/internal/model"
 )
@@ -43,7 +44,7 @@ func TestModelListsTorrents(t *testing.T) {
 	m := model{ctx: context.Background(), width: 100, torrents: []domain.TorrentSnapshot{{ID: "one", Name: "example.iso", State: domain.TorrentStateDownloading, Progress: 0.5, DownloadRate: 1536, ConnectedPeers: 2, Seeders: 1, Leechers: 1}}}
 	m.ensureSelection()
 	view := m.View()
-	for _, value := range []string{"example.iso", "downloading", "50.0%", "1.5 KiB/s", "2 (1s/1l)", "[a] add  [tab] change pane  [q] quit"} {
+	for _, value := range []string{"example.iso", "downloading", "50.0%", "1.5 KiB/s", "2 (1s/1l)", "Enter actions"} {
 		if !strings.Contains(view, value) {
 			t.Errorf("view does not contain %q: %s", value, view)
 		}
@@ -277,5 +278,47 @@ func TestRemoveDialogDeleteFilesIsOptIn(t *testing.T) {
 	m = updated.(model)
 	if m.removeDeleteData || m.removeOption {
 		t.Fatal("delete choice persisted on reopen")
+	}
+}
+
+func TestGlobalShortcutsFromBothPanes(t *testing.T) {
+	for _, pane := range []focus{focusTorrents, focusDetails} {
+		m := model{focus: pane}
+		updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+		if updated.(model).dialog != dialogAdd || cmd == nil {
+			t.Fatal("Add unavailable from pane")
+		}
+		_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+		if cmd == nil {
+			t.Fatal("Quit unavailable from pane")
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Fatal("expected quit command")
+		}
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+		m = updated.(model)
+		if m.dialog != dialogHelp {
+			t.Fatal("help did not open")
+		}
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+		if updated.(model).dialog != dialogNone || updated.(model).focus != pane {
+			t.Fatal("help lost pane focus")
+		}
+	}
+}
+
+func TestHelpFitsAndFollowsPane(t *testing.T) {
+	for _, width := range []int{40, 80, 120} {
+		m := model{width: width, height: 24, dialog: dialogHelp, focus: focusDetails, detailsTab: 1, selectedID: "one", torrents: []domain.TorrentSnapshot{{ID: "one"}}}
+		view := dialogStyle.Render(m.dialogView())
+		if lipgloss.Width(view) > width || lipgloss.Height(view) > m.height {
+			t.Fatalf("help overflows %dx24", width)
+		}
+		if lipgloss.Width(m.contextHelp()) > width || !strings.Contains(m.contextHelp(), "? help") {
+			t.Fatal("footer hides help or overflows")
+		}
+		if width >= 80 && !strings.Contains(m.contextHelp(), "Space priority") {
+			t.Fatal("footer missing file controls")
+		}
 	}
 }
