@@ -290,7 +290,6 @@ func (m model) dialogView() string {
 		remove := removeKey.Render(" Enter ") + addHintStyle.Render(" Remove")
 		cancel := cancelKey.Render(" Esc ") + addHintStyle.Render(" cancel")
 		rows = append(rows, remove+lipgloss.NewStyle().Background(addSurface).Render("   ")+cancel)
-		rows = append(rows, "", addHintStyle.Render(ansi.Truncate("↑/↓ option · Space toggle · ←/→ action · Enter confirm", width, "…")))
 		return dialogRows(rows, width)
 	case dialogActions:
 		width := max(24, min(38, m.width-10))
