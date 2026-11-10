@@ -134,3 +134,37 @@ func TestEngineRemoveWithAndWithoutData(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveBeforeMetadataWithDeleteData(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "movie")
+	if err := os.WriteFile(path, []byte("unrelated"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := torrent.NewDefaultClientConfig()
+	cfg.DisableTCP, cfg.DisableUTP, cfg.NoDHT, cfg.DisableTrackers, cfg.NoDefaultPortForwarding, cfg.DisableWebtorrent = true, true, true, true, true, true
+	cfg.DefaultStorage = storage.NewFileOpts(storage.NewFileClientOpts{PieceCompletion: storage.NewMapPieceCompletion()})
+	client, err := torrent.NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := &Engine{client: client, torrents: make(map[model.TorrentID]torrentEntry), events: make(chan model.EngineEvent)}
+	defer e.Close()
+	id, _, err := e.Add(context.Background(), model.AddInput{Source: "magnet:?xt=urn:btih:0123456789012345678901234567890123456789&dn=movie", SavePath: directory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.torrents[id].torrent.Info() != nil {
+		t.Fatal("expected unavailable metadata")
+	}
+	if err := e.Remove(context.Background(), id, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Snapshot(context.Background(), id); err == nil {
+		t.Fatal("torrent still registered")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "unrelated" {
+		t.Fatal("removal changed an unrelated file")
+	}
+}

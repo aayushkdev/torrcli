@@ -225,11 +225,11 @@ func (e *Engine) Remove(ctx context.Context, id model.TorrentID, deleteData bool
 	var root *os.Root
 	var paths []string
 	var restoreSpec *torrent.TorrentSpec
+	info := entry.torrent.Info()
+	// Without metadata there are no known payload files to delete. Remove the
+	// torrent normally; never guess file paths from a magnet's display name.
+	deleteData = deleteData && info != nil
 	if deleteData {
-		info := entry.torrent.Info()
-		if info == nil {
-			return fmt.Errorf("cannot delete files before torrent metadata is available")
-		}
 		root, paths, err = prepareDataRemoval(entry.savePath, info)
 		if err != nil {
 			return err
