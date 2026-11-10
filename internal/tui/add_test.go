@@ -38,7 +38,7 @@ func TestAddDialogArrowNavigationAndSubmission(t *testing.T) {
 	key(tea.KeyMsg{Type: tea.KeyDown})
 	key(tea.KeyMsg{Type: tea.KeySpace})
 	key(tea.KeyMsg{Type: tea.KeyDown})
-	key(tea.KeyMsg{Type: tea.KeyEnter})
+	key(tea.KeyMsg{Type: tea.KeySpace})
 	key(tea.KeyMsg{Type: tea.KeyDown})
 	cmd := key(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil || !m.pending {
@@ -187,13 +187,54 @@ func TestAddDialogCanSelectCancelWithArrows(t *testing.T) {
 		m := model{dialog: dialogAdd, input: "example.torrent", addForm: addForm{field: addSubmit}}
 		updated, _ := m.Update(tea.KeyMsg{Type: arrow})
 		m = updated.(model)
-		if !m.addForm.cancel {
+		if m.addForm.field != addCancel {
 			t.Fatal("arrow did not select cancel")
 		}
 		updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		m = updated.(model)
 		if cmd != nil || m.pending || m.dialog != dialogNone {
 			t.Fatal("confirming cancel attempted to add")
+		}
+	}
+}
+
+func TestEnterFocusesAddBeforeSubmitting(t *testing.T) {
+	for field := addSource; field <= addPaused; field++ {
+		client := &addClient{}
+		m := model{ctx: context.Background(), daemon: client, dialog: dialogAdd, input: "example.torrent", addForm: addForm{field: field}}
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m = updated.(model)
+		if m.addForm.field != addSubmit || m.pending || m.addForm.sequential || m.addForm.paused {
+			t.Fatal("Enter must focus Add without submitting or toggling")
+		}
+		updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m = updated.(model)
+		if cmd == nil || !m.pending {
+			t.Fatal("second Enter must submit")
+		}
+		cmd()
+		if !filepath.IsAbs(client.params.Source) {
+			t.Fatal("submission lost source")
+		}
+	}
+}
+
+func TestAddNavigationIncludesBothButtons(t *testing.T) {
+	for _, keys := range [][2]tea.KeyType{{tea.KeyTab, tea.KeyShiftTab}, {tea.KeyDown, tea.KeyUp}} {
+		m := model{dialog: dialogAdd}
+		for field := addSource; field <= addCancel; field++ {
+			if m.addForm.field != field {
+				t.Fatalf("focus = %d, want %d", m.addForm.field, field)
+			}
+			updated, _ := m.Update(tea.KeyMsg{Type: keys[0]})
+			m = updated.(model)
+		}
+		for field := addCancel; field >= addSource; field-- {
+			updated, _ := m.Update(tea.KeyMsg{Type: keys[1]})
+			m = updated.(model)
+			if m.addForm.field != field {
+				t.Fatalf("reverse focus = %d, want %d", m.addForm.field, field)
+			}
 		}
 	}
 }

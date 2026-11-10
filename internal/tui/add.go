@@ -21,11 +21,11 @@ const (
 	addSequential
 	addPaused
 	addSubmit
+	addCancel
 )
 
 type addForm struct {
 	field       int
-	cancel      bool
 	cursors     [2]int
 	path        string
 	defaultPath string
@@ -136,28 +136,26 @@ func (m model) updateAddDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if key.Type == tea.KeyUp || key.Type == tea.KeyShiftTab {
 			delta = -1
 		}
-		m.addForm.field = (old + delta + addSubmit + 1) % (addSubmit + 1)
-		m.addForm.cancel = false
+		m.addForm.field = (old + delta + addCancel + 1) % (addCancel + 1)
 		if old == addSource {
 			return m, m.previewAddSource()
 		}
 		return m, nil
 	case tea.KeyEnter:
 		switch m.addForm.field {
-		case addSource, addPath:
-			m.addForm.field++
-			return m, m.previewAddSource()
-		case addSequential:
-			m.addForm.sequential = !m.addForm.sequential
-		case addPaused:
-			m.addForm.paused = !m.addForm.paused
-		case addSubmit:
-			if m.addForm.cancel {
-				m.dialog = dialogNone
-				m.input = ""
-				m.addForm = addForm{}
-				return m, nil
+		case addSource, addPath, addSequential, addPaused:
+			old := m.addForm.field
+			m.addForm.field = addSubmit
+			if old == addSource {
+				return m, m.previewAddSource()
 			}
+			return m, nil
+		case addCancel:
+			m.dialog = dialogNone
+			m.input = ""
+			m.addForm = addForm{}
+			return m, nil
+		case addSubmit:
 			source := strings.TrimSpace(m.input)
 			if source == "" {
 				m.addForm.err = "Enter a magnet link or .torrent path"
@@ -187,12 +185,12 @@ func (m model) updateAddDialog(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.addForm.field == addSubmit && (key.Type == tea.KeyLeft || key.Type == tea.KeyRight) {
-		m.addForm.cancel = !m.addForm.cancel
+	if m.addForm.field >= addSubmit && (key.Type == tea.KeyLeft || key.Type == tea.KeyRight) {
+		m.addForm.field = addSubmit + addCancel - m.addForm.field
 		return m, nil
 	}
 	if m.addForm.field == addSequential || m.addForm.field == addPaused {
-		if key.Type == tea.KeySpace || key.Type == tea.KeyLeft || key.Type == tea.KeyRight {
+		if key.Type == tea.KeySpace {
 			if m.addForm.field == addSequential {
 				m.addForm.sequential = !m.addForm.sequential
 			} else {
@@ -357,34 +355,33 @@ func (m model) addDialogView() string {
 	gap()
 	button := "  Add torrent  "
 	buttonStyle := lipgloss.NewStyle().Foreground(addText).Background(addFocusSurface).Bold(true)
-	if m.addForm.field == addSubmit && !m.addForm.cancel {
+	if m.addForm.field == addSubmit {
 		buttonStyle = buttonStyle.Foreground(addInputSurface).Background(addAccent)
-		button = "> Add torrent  "
 	}
 	if m.pending {
 		button = "  Adding…  "
 		buttonStyle = buttonStyle.Foreground(addSecondary).Background(addInputSurface)
 	}
 	cancelKey := dialogKeyStyle
-	if m.addForm.field == addSubmit && m.addForm.cancel && !m.pending {
+	if m.addForm.field == addCancel && !m.pending {
 		cancelKey = cancelKey.Foreground(addInputSurface).Background(addAccent)
 	}
 	cancel := addHintStyle.Render("  ") + cancelKey.Render(" Esc ") + addHintStyle.Render(" cancel")
 	rows = append(rows, buttonStyle.Render(button)+cancel)
-	help := "↑/↓ field   Space toggle   Enter continue"
+	help := "Tab/Shift+Tab or ↑/↓ move · Space toggle · Enter go to Add"
 	if m.addForm.field <= addPath {
-		help = "↑/↓ field   ←/→ cursor   Enter next"
+		help = "Tab/Shift+Tab or ↑/↓ move · ←/→ cursor · Enter go to Add"
 	}
-	if m.addForm.field == addSubmit {
-		help = "←/→ choose   Enter confirm   ↑/↓ field"
+	if m.addForm.field >= addSubmit {
+		help = "Tab/Shift+Tab or ↑/↓ move · ←/→ choose · Enter confirm"
 	}
-	if width < 40 {
-		help = "↑/↓ field  Enter next"
+	if width < 60 {
+		help = "Tab/↑↓ move · Enter go to Add"
 		if m.addForm.field == addSequential || m.addForm.field == addPaused {
-			help = "↑/↓ field  Space toggle"
+			help = "Tab/↑↓ move · Space toggle"
 		}
-		if m.addForm.field == addSubmit {
-			help = "←/→ choose  Enter confirm"
+		if m.addForm.field >= addSubmit {
+			help = "Tab/↑↓ move · Enter confirm"
 		}
 	}
 	if m.height >= 26 {
